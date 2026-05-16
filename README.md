@@ -21,3 +21,10 @@ The system is built around four agents:
 - [`docs/operator_workflow.md`](docs/operator_workflow.md)
 - [`src/roboqc_agent/schemas.py`](src/roboqc_agent/schemas.py)
 - [`docs/codex_brief.md`](docs/codex_brief.md)
+
+## Working agreements
+
+- [`docs/non_negotiables.md`](docs/non_negotiables.md)
+- [`docs/ai_collaboration_protocol.md`](docs/ai_collaboration_protocol.md)
+- [`docs/decision_log.md`](docs/decision_log.md)
+- [`docs/open_questions.md`](docs/open_questions.md)
