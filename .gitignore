@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+.DS_Store
+
+# Public repo stores scripts and citations, not downloaded datasets.
+data/deeppcb/
+data/pku/
+data/visa_pcb/
