@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "roboqc-agent-challenge"
+version = "0.1.0"
+description = "RoboQC Agent: SMT first-article inspection assistant"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Aleksandr Lyubarev" }]
+dependencies = [
+  "fastapi",
+  "google-adk",
+  "google-genai",
+  "pydantic>=2",
+  "uvicorn[standard]",
+]
+
+[project.optional-dependencies]
+dev = [
+  "black",
+  "mypy",
+  "pre-commit",
+  "pytest",
+  "pytest-asyncio",
+  "ruff",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/roboqc_agent"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+packages = ["roboqc_agent"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+asyncio_mode = "auto"
