@@ -95,3 +95,45 @@ in about 60 seconds.
   legal, money, or scope is changing.
 - **Reversible:** yes.
 - **Revisit after:** 2026-06-06.
+
+## 2026-05-17 — Architecture document follows committed provider and storage contracts
+
+- **Decided by:** Codex
+- **Area:** code
+- **Decision:** `docs/architecture.md` describes the currently committed
+  provider, execution-store, and image-persistence boundaries instead of
+  projecting a more advanced future implementation into the v1 baseline.
+- **Context:** Claude's first architecture pass correctly captured the product
+  shape but went slightly ahead of committed code in three places: provider
+  return type, evidence-store breadth, and concrete object-storage status.
+- **Alternatives considered:** keep the aspirational wording; immediately expand
+  code to match the document; align the document to the current baseline and let
+  later implementation widen the surface deliberately.
+- **Why this won:** it keeps docs and code truthful while preserving room to add
+  tile / lot persistence and a GCS image adapter later without pretending they
+  already exist.
+- **Impact on other agent:** Claude can rely on the architecture doc as a real
+  contract; future narrative docs should not assume unimplemented persistence
+  backends, completed image storage, or direct `BaseModel` returns from the
+  provider.
+- **Reversible:** yes.
+- **Revisit after:** when tile-level Evidence Report implementation starts.
+
+## 2026-05-17 — Checkpointing must be ADK-native, not a direct donor transplant
+
+- **Decided by:** Codex
+- **Area:** code
+- **Decision:** the repo keeps `checkpointing/` as a reserved module, but the
+  earlier LangGraph-specific donor implementation is not copied directly into
+  the ADK project.
+- **Context:** the submission explicitly forbids LangGraph while one donor
+  checkpointing module was built around LangGraph semantics.
+- **Alternatives considered:** copy the donor unchanged; drop checkpointing
+  entirely; keep the module boundary but design it later against the actual ADK
+  graph.
+- **Why this won:** it preserves the intended reliability concern without
+  importing the wrong runtime assumptions.
+- **Impact on other agent:** narrative can mention checkpointing as a future
+  reliability module, but not as an already-complete LangGraph-derived feature.
+- **Reversible:** yes.
+- **Revisit after:** when `graph.py` becomes a real ADK workflow.
