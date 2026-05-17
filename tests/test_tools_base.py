@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from pydantic import BaseModel
 
 from roboqc_agent.tools.base import AbstractTool, ToolResult, ToolUseContext
@@ -26,16 +28,22 @@ class EchoTool(AbstractTool[EchoInput, dict[str, str]]):
         return "Echo text"
 
 
-async def test_tool_lifecycle_returns_structured_output() -> None:
-    result = await EchoTool().run({"text": "ok"}, ToolUseContext(request_id="req-1"))
+async def _run_echo_ok() -> ToolResult[dict[str, str]]:
+    return await EchoTool().run({"text": "ok"}, ToolUseContext(request_id="req-1"))
 
+
+async def _run_echo_schema_error() -> ToolResult[dict[str, str]]:
+    return await EchoTool().run({}, ToolUseContext())
+
+
+def test_tool_lifecycle_returns_structured_output() -> None:
+    result = asyncio.run(_run_echo_ok())
     assert result.success is True
     assert result.output == {"echo": "ok"}
     assert result.metadata["tool_name"] == "echo"
 
 
-async def test_tool_lifecycle_reports_schema_errors() -> None:
-    result = await EchoTool().run({}, ToolUseContext())
-
+def test_tool_lifecycle_reports_schema_errors() -> None:
+    result = asyncio.run(_run_echo_schema_error())
     assert result.success is False
     assert result.metadata["stage"] == "input_schema"
