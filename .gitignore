@@ -5,6 +5,7 @@ __pycache__/
 .ruff_cache/
 *.pyc
 .DS_Store
+.private/
 
 # Public repo stores scripts and citations, not downloaded datasets.
 data/deeppcb/
