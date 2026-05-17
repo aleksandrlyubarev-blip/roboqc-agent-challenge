@@ -6,9 +6,18 @@ import mimetypes
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
+
+from roboqc_agent.telemetry import (
+    LLMOperation,
+    TelemetrySink,
+    build_error_event,
+    build_success_event,
+    log_llm_event,
+)
 
 if TYPE_CHECKING:
     from google.genai import types as genai_types
@@ -33,11 +42,13 @@ class VertexGeminiProvider:
         location: str = "us-central1",
         model: str = "gemini-2.5-pro",
         client: Any | None = None,
+        telemetry_sink: TelemetrySink = log_llm_event,
     ) -> None:
         self.project = project
         self.location = location
         self.model = model
         self.client = client or self._build_default_client(project=project, location=location)
+        self.telemetry_sink = telemetry_sink
 
     def generate_text(
         self,
@@ -45,12 +56,11 @@ class VertexGeminiProvider:
         *,
         response_schema: type[BaseModel] | dict[str, Any] | None = None,
     ) -> GenerationResult:
-        response = self.client.models.generate_content(
-            model=self.model,
+        return self._generate(
+            operation="generate_text",
             contents=prompt,
-            config=self._build_config(response_schema=response_schema),
+            response_schema=response_schema,
         )
-        return self._normalize_response(response)
 
     def generate_multimodal(
         self,
@@ -61,12 +71,56 @@ class VertexGeminiProvider:
     ) -> GenerationResult:
         contents: list[Any] = [prompt]
         contents.extend(self._part_from_image_path(Path(image)) for image in images)
-        response = self.client.models.generate_content(
-            model=self.model,
+        return self._generate(
+            operation="generate_multimodal",
             contents=contents,
-            config=self._build_config(response_schema=response_schema),
+            response_schema=response_schema,
+        )
+
+    def _generate(
+        self,
+        *,
+        operation: LLMOperation,
+        contents: Any,
+        response_schema: type[BaseModel] | dict[str, Any] | None,
+    ) -> GenerationResult:
+        started = perf_counter()
+        try:
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=contents,
+                config=self._build_config(response_schema=response_schema),
+            )
+        except Exception as exc:
+            self._emit_telemetry(
+                build_error_event(
+                    model=self.model,
+                    operation=operation,
+                    latency_ms=self._latency_ms(started),
+                    error=exc,
+                )
+            )
+            raise
+
+        self._emit_telemetry(
+            build_success_event(
+                model=self.model,
+                operation=operation,
+                latency_ms=self._latency_ms(started),
+                response=response,
+            )
         )
         return self._normalize_response(response)
+
+    @staticmethod
+    def _latency_ms(started: float) -> int:
+        return int((perf_counter() - started) * 1000)
+
+    def _emit_telemetry(self, event: Any) -> None:
+        try:
+            self.telemetry_sink(event)
+        except Exception:  # pragma: no cover - telemetry must not break inference
+            pass
 
     @staticmethod
     def _build_default_client(*, project: str, location: str) -> Any:
