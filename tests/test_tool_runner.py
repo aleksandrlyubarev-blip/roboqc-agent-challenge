@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 from pydantic import BaseModel
 
 from roboqc_agent.orchestration.tool_runner import ToolCall, partition_tool_calls, run_tools
@@ -48,9 +50,9 @@ def test_partition_tool_calls_batches_reads_and_serializes_writes() -> None:
     assert [len(batch.tool_calls) for batch in batches] == [2, 1]
 
 
-async def test_run_tools_preserves_request_order() -> None:
+async def _collect_executions() -> list[object]:
     tools = {"read": ReadTool(), "write": WriteTool()}
-    executions = [
+    return [
         execution
         async for execution in run_tools(
             [
@@ -62,4 +64,7 @@ async def test_run_tools_preserves_request_order() -> None:
         )
     ]
 
+
+def test_run_tools_preserves_request_order() -> None:
+    executions = asyncio.run(_collect_executions())
     assert [execution.result.output for execution in executions] == ["a", "b"]
