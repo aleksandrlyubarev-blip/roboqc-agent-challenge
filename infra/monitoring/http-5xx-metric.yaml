@@ -1,0 +1,16 @@
+description: "Count of RoboQC HTTP 5xx responses"
+
+filter: |
+  resource.type="cloud_run_revision"
+  AND resource.labels.service_name="roboqc-agent"
+  AND jsonPayload.event="http_request"
+  AND jsonPayload.status_code>=500
+
+metricDescriptor:
+  metricKind: DELTA
+  valueType: INT64
+  unit: "1"
+  displayName: "RoboQC HTTP 5xx responses (count)"
+
+labelExtractors:
+  path: EXTRACT(jsonPayload.path)

@@ -390,7 +390,9 @@ JSON itself.
 
 Telemetry hooks (P1, `telemetry/`) wrap every provider call with token
 counts, latency, and request_id. This is the boundary at which Cloud Run
-monitoring captures LLM cost and latency.
+monitoring captures LLM latency and error rate. Cost monitoring is deferred
+until the provider surface exposes a trustworthy normalized cost field rather
+than an inferred estimate.
 
 ---
 

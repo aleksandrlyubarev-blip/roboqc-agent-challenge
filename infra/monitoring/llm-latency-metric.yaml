@@ -1,0 +1,24 @@
+description: "Latency in milliseconds for successful Vertex Gemini calls"
+
+filter: |
+  resource.type="cloud_run_revision"
+  AND resource.labels.service_name="roboqc-agent"
+  AND jsonPayload.event="llm_call"
+
+valueExtractor: EXTRACT(jsonPayload.latency_ms)
+
+metricDescriptor:
+  metricKind: DELTA
+  valueType: DISTRIBUTION
+  unit: ms
+  displayName: "RoboQC LLM latency (ms)"
+
+labelExtractors:
+  model: EXTRACT(jsonPayload.model)
+  operation: EXTRACT(jsonPayload.operation)
+
+bucketOptions:
+  exponentialBuckets:
+    numFiniteBuckets: 25
+    growthFactor: 1.5
+    scale: 25

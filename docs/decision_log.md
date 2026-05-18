@@ -179,3 +179,24 @@ in about 60 seconds.
   product with platform-managed service auth, not a beta-key distribution flow.
 - **Reversible:** yes.
 - **Revisit after:** when the product needs multi-operator external access.
+
+## 2026-05-18 — Monitoring follows emitted telemetry fields, not donor cost assumptions
+
+- **Decided by:** Codex
+- **Area:** code
+- **Decision:** P1 monitoring ships LLM latency, LLM error, and HTTP 5xx
+  artifacts now; a cost alert is deferred until the Vertex provider emits a
+  normalized cost field.
+- **Context:** the Andrew donor received `cost_usd` from LiteLLM, while the
+  current RoboQC provider truthfully emits model, operation, latency, request
+  id, and token counts.
+- **Alternatives considered:** copy the donor cost alert with a guessed field;
+  add an ad hoc pricing estimate now; monitor only fields that the code already
+  emits.
+- **Why this won:** it keeps observability honest and avoids advertising a
+  production signal that the system cannot yet compute reliably.
+- **Impact on other agent:** technical docs should describe current monitoring
+  as latency/error coverage; cost monitoring remains a later extension.
+- **Reversible:** yes.
+- **Revisit after:** once normalized per-call cost is part of the provider
+  telemetry contract.
