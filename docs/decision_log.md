@@ -138,6 +138,28 @@ in about 60 seconds.
 - **Reversible:** yes.
 - **Revisit after:** when `graph.py` becomes a real ADK workflow.
 
+## 2026-05-17 — Request logging is Cloud Logging-first, not database-backed
+
+- **Decided by:** Codex
+- **Area:** code
+- **Decision:** the P1 request-log donor is adapted into structured HTTP
+  logging for Cloud Run rather than copied as a Postgres writer.
+- **Context:** the donor implementation wrote to an Andrew-specific Postgres
+  table, while RoboQC has not selected a durable post-submission backend and
+  does not need a separate request-log database for the v1 demo.
+- **Alternatives considered:** copy the donor unchanged; postpone request
+  logging entirely; emit structured request records through the application
+  logger and let Cloud Logging capture them.
+- **Why this won:** it preserves latency/error visibility now, avoids inventing
+  a database commitment the product has not made, and matches the already
+  chosen Cloud Run observability path.
+- **Impact on other agent:** architecture and deployment docs should describe
+  request logging as structured Cloud Logging output, not as a persisted SQL
+  subsystem.
+- **Reversible:** yes.
+- **Revisit after:** once a durable backend is chosen for post-submission
+  evidence and analytics.
+
 ## 2026-05-18 — Submission auth remains platform-managed in Cloud Run
 
 - **Decided by:** Codex
