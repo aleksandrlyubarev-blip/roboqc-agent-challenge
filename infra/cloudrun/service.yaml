@@ -1,0 +1,21 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: roboqc-agent
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: "10"
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containerConcurrency: 1
+      timeoutSeconds: 300
+      serviceAccountName: REPLACE_WITH_SERVICE_ACCOUNT
+      containers:
+        - image: REPLACE_WITH_IMAGE
+          env:
+            - name: VERTEX_LOCATION
+              value: us-central1
+          ports:
+            - containerPort: 8080

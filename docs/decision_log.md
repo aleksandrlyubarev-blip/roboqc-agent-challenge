@@ -159,3 +159,23 @@ in about 60 seconds.
 - **Reversible:** yes.
 - **Revisit after:** once a durable backend is chosen for post-submission
   evidence and analytics.
+
+## 2026-05-18 — Submission auth remains platform-managed in Cloud Run
+
+- **Decided by:** Codex
+- **Area:** code
+- **Decision:** the v1 deployment scaffold uses Cloud Run IAM and a dedicated
+  service account, with no application-level API-key or OAuth middleware added
+  to the submission path.
+- **Context:** the frozen architecture already specifies Cloud Run IAM, while
+  the donor auth module was tailored to an Andrew beta flow with tester API
+  keys that RoboQC does not need.
+- **Alternatives considered:** transplant donor API-key middleware; add a new
+  app-level auth layer; keep auth at the Cloud Run boundary only.
+- **Why this won:** it matches the agreed architecture, removes unnecessary
+  code and secrets from the demo, and keeps the service posture easy to explain
+  to judges.
+- **Impact on other agent:** docs and demos should describe one operator-facing
+  product with platform-managed service auth, not a beta-key distribution flow.
+- **Reversible:** yes.
+- **Revisit after:** when the product needs multi-operator external access.
