@@ -1,0 +1,37 @@
+{
+  "displayName": "RoboQC — HTTP 5xx rate (>5 / 5 min)",
+  "documentation": {
+    "content": "More than 5 HTTP 5xx responses in 5 minutes. Inspect recent request logs with:\\n\\n`gcloud logging read 'resource.type=cloud_run_revision AND jsonPayload.event=\\\"http_request\\\" AND jsonPayload.status_code>=500' --limit=20 --order=desc`",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "5-min HTTP 5xx count > 5",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/roboqc_http_5xx_count\" AND resource.type=\"cloud_run_revision\"",
+        "aggregations": [
+          {
+            "alignmentPeriod": "300s",
+            "perSeriesAligner": "ALIGN_SUM",
+            "crossSeriesReducer": "REDUCE_SUM",
+            "groupByFields": []
+          }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 5.0,
+        "duration": "0s",
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "alertStrategy": {
+    "autoClose": "1800s"
+  },
+  "notificationChannels": [
+    "NOTIFICATION_CHANNEL_RESOURCE"
+  ],
+  "enabled": true
+}

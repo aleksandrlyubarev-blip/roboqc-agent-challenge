@@ -1,0 +1,37 @@
+{
+  "displayName": "RoboQC — LLM error rate (>5 / 5 min)",
+  "documentation": {
+    "content": "More than 5 llm_error events in 5 minutes. Triage recent logs with:\\n\\n`gcloud logging read 'resource.type=cloud_run_revision AND jsonPayload.event=\\\"llm_error\\\"' --limit=20 --order=desc`",
+    "mimeType": "text/markdown"
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "5-min llm_error count > 5",
+      "conditionThreshold": {
+        "filter": "metric.type=\"logging.googleapis.com/user/roboqc_llm_error_count\" AND resource.type=\"cloud_run_revision\"",
+        "aggregations": [
+          {
+            "alignmentPeriod": "300s",
+            "perSeriesAligner": "ALIGN_SUM",
+            "crossSeriesReducer": "REDUCE_SUM",
+            "groupByFields": []
+          }
+        ],
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 5.0,
+        "duration": "0s",
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "alertStrategy": {
+    "autoClose": "1800s"
+  },
+  "notificationChannels": [
+    "NOTIFICATION_CHANNEL_RESOURCE"
+  ],
+  "enabled": true
+}
