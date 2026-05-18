@@ -14,8 +14,9 @@ IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE}:${TAG}"
 echo ">>> Building image ${IMAGE}"
 gcloud builds submit \
   --project="${PROJECT_ID}" \
-  --tag="${IMAGE}" \
-  -f infra/cloudrun/Dockerfile .
+  --config=infra/cloudrun/cloudbuild.yaml \
+  --substitutions="_IMAGE=${IMAGE}" \
+  .
 
 echo ">>> Deploying ${SERVICE} to Cloud Run in ${REGION}"
 gcloud run deploy "${SERVICE}" \
