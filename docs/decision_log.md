@@ -219,3 +219,26 @@ in about 60 seconds.
   now.
 - **Reversible:** yes.
 - **Revisit after:** when v0.1 prompt files are committed.
+
+## 2026-05-19 — Prompt text copied unmodified despite schema mismatch
+
+- **Decided by:** Codex
+- **Area:** process
+- **Decision:** Claude-owned prompt files were copied into
+  `src/roboqc_agent/prompts/` without editing prompt strings, while the
+  prompt/schema mismatch was recorded in issue #21 and
+  `docs/prompt_schema_handoff.md`.
+- **Context:** the task explicitly required Codex to transfer prompt text from
+  Desktop unchanged, but also required checking Output Format fields against
+  `schemas.py` before committing prompts.
+- **Alternatives considered:** silently edit prompts to match schemas; change
+  schema semantics to match prompts; commit prompts unchanged and block real
+  runtime wiring on an explicit issue.
+- **Why this won:** it preserves Claude's prompt ownership, protects the frozen
+  schema contract, and leaves a clear next action rather than hiding a runtime
+  mismatch.
+- **Impact on other agent:** Claude must revise prompt Output Format sections
+  or propose schema v1.1 before the graph skeleton should be treated as an
+  executable LLM flow.
+- **Reversible:** yes.
+- **Revisit after:** issue #21 is resolved.

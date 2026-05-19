@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from google.adk.agents.llm_agent import Agent
 
+from roboqc_agent.prompts.fmea_risk import SYSTEM_PROMPT
 from roboqc_agent.schemas import FMEAEntry
 
 FMEA_RISK_NAME = "fmea_risk"
@@ -11,10 +12,10 @@ FMEA_RISK_NAME = "fmea_risk"
 
 def build_fmea_risk_agent(
     *,
-    instruction: str,
+    instruction: str = SYSTEM_PROMPT,
     model: str = "gemini-2.5-pro",
 ) -> Agent:
-    """Build the text-only FMEA Risk agent without owning prompt text."""
+    """Build the text-only FMEA Risk agent."""
 
     return Agent(
         name=FMEA_RISK_NAME,
