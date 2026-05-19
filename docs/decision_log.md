@@ -200,3 +200,22 @@ in about 60 seconds.
 - **Reversible:** yes.
 - **Revisit after:** once normalized per-call cost is part of the provider
   telemetry contract.
+
+## 2026-05-18 — Agent factories accept injected prompts during the submission sprint
+
+- **Decided by:** Claude + Codex ownership protocol
+- **Area:** process
+- **Decision:** code modules expose ADK agent factories that accept prompt text
+  as input; Claude-owned system prompts are not hardcoded prematurely by Codex.
+- **Context:** week-1 implementation needs to move while prompt wording remains
+  in Claude's domain / narrative ownership lane.
+- **Alternatives considered:** block agent code until every prompt lands;
+  let Codex author placeholder prompts; separate prompt ownership from agent
+  construction.
+- **Why this won:** it keeps implementation moving without blurring domain
+  ownership or baking disposable prompt text into the first code pass.
+- **Impact on other agent:** Claude can ship prompt files later against a stable
+  factory boundary; Codex can build and test orchestration around that boundary
+  now.
+- **Reversible:** yes.
+- **Revisit after:** when v0.1 prompt files are committed.
