@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from google.adk.agents.llm_agent import Agent
 
+from roboqc_agent.prompts.vision_inspector import SYSTEM_PROMPT
 from roboqc_agent.schemas import Defect
 
 VISION_INSPECTOR_NAME = "vision_inspector"
@@ -11,10 +12,10 @@ VISION_INSPECTOR_NAME = "vision_inspector"
 
 def build_vision_inspector_agent(
     *,
-    instruction: str,
+    instruction: str = SYSTEM_PROMPT,
     model: str = "gemini-2.5-pro",
 ) -> Agent:
-    """Build the multimodal Vision Inspector without owning prompt text."""
+    """Build the multimodal Vision Inspector."""
 
     return Agent(
         name=VISION_INSPECTOR_NAME,
