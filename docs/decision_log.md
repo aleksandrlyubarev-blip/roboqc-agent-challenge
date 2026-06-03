@@ -144,7 +144,7 @@ in about 60 seconds.
 - **Area:** code
 - **Decision:** the P1 request-log donor is adapted into structured HTTP
   logging for Cloud Run rather than copied as a Postgres writer.
-- **Context:** the donor implementation wrote to an Andrew-specific Postgres
+- **Context:** the donor implementation wrote to a prior internal Postgres
   table, while RoboQC has not selected a durable post-submission backend and
   does not need a separate request-log database for the v1 demo.
 - **Alternatives considered:** copy the donor unchanged; postpone request
@@ -168,7 +168,7 @@ in about 60 seconds.
   service account, with no application-level API-key or OAuth middleware added
   to the submission path.
 - **Context:** the frozen architecture already specifies Cloud Run IAM, while
-  the donor auth module was tailored to an Andrew beta flow with tester API
+  the donor auth module was tailored to a prior internal beta flow with tester API
   keys that RoboQC does not need.
 - **Alternatives considered:** transplant donor API-key middleware; add a new
   app-level auth layer; keep auth at the Cloud Run boundary only.
@@ -187,7 +187,7 @@ in about 60 seconds.
 - **Decision:** P1 monitoring ships LLM latency, LLM error, and HTTP 5xx
   artifacts now; a cost alert is deferred until the Vertex provider emits a
   normalized cost field.
-- **Context:** the Andrew donor received `cost_usd` from LiteLLM, while the
+- **Context:** the prior internal donor received `cost_usd` from LiteLLM, while the
   current RoboQC provider truthfully emits model, operation, latency, request
   id, and token counts.
 - **Alternatives considered:** copy the donor cost alert with a guessed field;

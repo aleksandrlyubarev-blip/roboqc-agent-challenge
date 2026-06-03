@@ -109,7 +109,7 @@ These are illustrative numbers for the submission demo, not contractual SLAs:
 - **Tile latency end-to-end:** ≤ 8 seconds (capture → display agent decision).
 - **Operator review time per tile:** ≤ 5 seconds for `pass`, ≤ 15 seconds for `rework`, ≤ 30 seconds for `human_review`.
 - **Throughput with 600-tile board:** ≤ 90 minutes per board with one operator. Without the agent, the same inspection by an unaided junior operator typically requires 4–6 hours, and the result is less reliable.
-- **Operator-agent agreement target:** ≥ 92% on `pass` and `rework` decisions, measured on a held-out validation set drawn from PKU-Market-PCB.
+- **Operator-agent agreement target:** ≥ 92% on `pass` and `rework` decisions, to be measured against a held-out validation set drawn from PKU-Market-PCB. This is a target and has not been measured yet.
 
 ## 6. What the operator does *not* see
 

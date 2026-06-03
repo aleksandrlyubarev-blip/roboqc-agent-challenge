@@ -33,14 +33,14 @@ roboqc-agent-challenge/
 │   │   ├── evidence_report.py             # NEW — TileReport / QCReport assembly
 │   │   └── supervisor.py                  # NEW — emits Action with HITL gating
 │   ├── graph.py                           # ADK graph wiring
-│   ├── tools/                             # ← Andrew core/tools/base.py (generic typed-tool only)
-│   ├── orchestration/                     # ← Andrew core/orchestration/tool_runner.py
+│   ├── tools/                             # ← internal-donor core/tools/base.py (generic typed-tool only)
+│   ├── orchestration/                     # ← internal-donor core/orchestration/tool_runner.py
 │   ├── execution_store/                   # ← reusable execution-store donor
 │   ├── policy/                            # ← reusable friction-policy donor
 │   ├── hitl/                              # ← reusable conformal HITL donor
-│   ├── telemetry/                         # ← Andrew deploy llm_telemetry + request_log
-│   ├── auth/                              # ← Andrew deploy auth (simplified)
-│   ├── checkpointing/                     # ← Andrew deploy checkpointing
+│   ├── telemetry/                         # ← internal-donor deploy llm_telemetry + request_log
+│   ├── auth/                              # ← internal-donor deploy auth (simplified)
+│   ├── checkpointing/                     # ← internal-donor deploy checkpointing
 │   └── providers/
 │       └── vertex_gemini.py               # NEW — Vertex AI Gemini 2.5 Pro client
 ├── bench/
@@ -51,8 +51,8 @@ roboqc-agent-challenge/
 ├── ui/
 │   └── streamlit_app.py                   # NEW — tile capture + review UI
 ├── infra/
-│   ├── cloudrun/                          # ← Andrew deploy Cloud Run artifacts
-│   └── monitoring/                        # ← Andrew deploy monitoring artifacts
+│   ├── cloudrun/                          # ← internal-donor deploy Cloud Run artifacts
+│   └── monitoring/                        # ← internal-donor deploy monitoring artifacts
 ├── data/
 │   ├── deeppcb/                           # download script provided, not committed
 │   ├── pku/                               # download script provided, not committed
@@ -78,14 +78,14 @@ roboqc-agent-challenge/
 
 **P0 (week 1, day 1–3):**
 
-1. `Andrew-Analitic/core/tools/base.py` → `src/roboqc_agent/tools/base.py`. Strip SQL/Pandera/dataframe code. Keep only generic typed-tool contract.
-2. `Andrew-Analitic/core/orchestration/tool_runner.py` → `src/roboqc_agent/orchestration/tool_runner.py`. Adapt to ADK invocation pattern.
+1. `internal-donor/core/tools/base.py` → `src/roboqc_agent/tools/base.py`. Strip SQL/Pandera/dataframe code. Keep only generic typed-tool contract.
+2. `internal-donor/core/orchestration/tool_runner.py` → `src/roboqc_agent/orchestration/tool_runner.py`. Adapt to ADK invocation pattern.
 3. execution-store donor + `SQLiteExecutionRepository` → `src/roboqc_agent/execution_store/`. Schema is `TileReport` / `QCReport` from `schemas.py`, not analytical execution.
 4. New file `src/roboqc_agent/providers/vertex_gemini.py`: Vertex client via ADC, methods `generate_text()`, `generate_multimodal(images, prompt, response_schema)`.
 
 **P1 (week 1, day 4–7):**
 
-5. `Andrew-Analitic` deploy branch → `bridge/llm_telemetry.py`, `request_log.py`, `auth.py`, `checkpointing.py` → `src/roboqc_agent/{telemetry,auth,checkpointing}/`. Simplify auth to Cloud Run IAM + service account.
+5. `internal-donor` deploy branch → `bridge/llm_telemetry.py`, `request_log.py`, `auth.py`, `checkpointing.py` → `src/roboqc_agent/{telemetry,auth,checkpointing}/`. Simplify auth to Cloud Run IAM + service account.
 6. Cloud Run artifacts → `infra/cloudrun/`. Target region `us-central1`.
 7. friction-policy donor → `src/roboqc_agent/policy/`. Adapt: input is `(defect_class, severity, confidence)`, output is `ActionKind`.
 
@@ -107,12 +107,12 @@ Required before publishing any benchmark or demo artifact.
 
 ## 5. Do NOT migrate
 
-- Any SQL validation, AST safety, Pandera, dataframe code from Andrew.
-- `core/andrew_swarm.py` monolith.
+- Any SQL validation, AST safety, Pandera, dataframe code from the internal donor codebase.
+- the internal donor monolith.
 - MCP server (stretch goal only, not in v1 submission).
 - Skills architecture from `claude/ai-first-skills-architecture-9sS0J`.
 - Any media pipelines (SceneOps, music, video).
-- Any Romeo / Romeo_PHD / Buxter / Brigada / Bassito code.
+- Any code from unrelated internal projects.
 - Any domain material unrelated to SMT first-article inspection.
 
 ## 6. Conventions
