@@ -8,6 +8,24 @@ It is deliberately honest about maturity. RoboQC Agent is an **R&D / challenge
 submission prototype**, not a deployed product. Where something is a design
 document, a scaffold, or a planned extension, this page says so.
 
+For a shorter entry point, see [`PARTNER_REVIEW.md`](PARTNER_REVIEW.md).
+
+---
+
+## Partner review path
+
+Recommended order for a technical partner review:
+
+1. **[`README.md`](README.md)** — orientation, status table, quickstart.
+2. **Core code** — [`src/roboqc_agent/schemas.py`](src/roboqc_agent/schemas.py)
+   (contracts) → [`src/roboqc_agent/policy/engine.py`](src/roboqc_agent/policy/engine.py)
+   (deterministic decision core) → [`src/roboqc_agent/telemetry/`](src/roboqc_agent/telemetry/)
+   (observability) → [`tests/`](tests/) (what is actually asserted).
+3. **[`bench/README.md`](bench/README.md)** — the measured-vs-target policy and
+   why no results table exists yet.
+4. **Open risks** — §4 (measured vs. target) and §5 (limitations / not yet
+   built) below.
+
 ---
 
 ## 1. Verify it yourself in ~2 minutes

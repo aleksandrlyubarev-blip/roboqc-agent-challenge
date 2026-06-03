@@ -12,8 +12,10 @@ human operator in the loop.
 > the operator UI, and the benchmark results are still in progress. This repo is
 > built to be **inspected honestly**, not to imply a deployed product.
 >
-> For a link-first map of exactly what exists today (and what does not), see
-> **[`PUBLIC_EVIDENCE.md`](PUBLIC_EVIDENCE.md)**.
+> **Reviewing this repo?** Start with **[`PARTNER_REVIEW.md`](PARTNER_REVIEW.md)**
+> for a short, link-first entry point, then see
+> **[`PUBLIC_EVIDENCE.md`](PUBLIC_EVIDENCE.md)** for the full map of exactly what
+> exists today (and what does not).
 
 ## What it is
 
