@@ -130,7 +130,7 @@ Detection confidence from Vision Inspector Agent (Gemini multimodal output) is n
 - `0.80 ≤ confidence < 0.95` → execute default action, but flag the evidence record for senior review.
 - `confidence < 0.80` → Supervisor Agent routes to `human_review` (HITL gate). Operator decides.
 
-These thresholds are initial values for the submission. Conformal calibration (from `RomeoFlexVision/claude/roboqc-dataset-preparation-cUBoX` reliability work) will refine these post-MVP.
+These thresholds are initial values for the submission. Conformal calibration (from a separate internal reliability workstream) will refine these post-MVP.
 
 ---
 
