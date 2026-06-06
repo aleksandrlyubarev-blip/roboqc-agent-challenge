@@ -61,6 +61,23 @@ def decide_action(
     confidence_by_defect = {defect.defect_id: defect.confidence for defect in defects}
     class_by_defect = {defect.defect_id: defect.defect_class for defect in defects}
 
+    # Safety guard: every defect must be risk-mapped. If FMEA returned fewer (or
+    # mismatched) entries, the unmapped defects would otherwise be silently
+    # ignored — a critical defect could slip through as PASS. Route to a human.
+    mapped_defect_ids = {entry.defect_id for entry in fmea_entries}
+    unmapped = [defect for defect in defects if defect.defect_id not in mapped_defect_ids]
+    if unmapped:
+        return Action(
+            tile_id=tile_id,
+            kind=ActionKind.HUMAN_REVIEW,
+            reason=(
+                f"{len(unmapped)} of {len(defects)} defect(s) not risk-mapped by "
+                "FMEA; operator review required."
+            ),
+            triggered_hitl=True,
+            confidence=aggregate_confidence,
+        )
+
     decisions: list[tuple[FMEAEntry, PolicyDecision]] = []
     for entry in fmea_entries:
         if entry.defect_id not in class_by_defect:

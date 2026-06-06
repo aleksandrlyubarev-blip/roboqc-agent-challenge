@@ -61,7 +61,7 @@ def _tile_report(
     return assemble_tile_report(tile, defects, [], action)
 
 
-def _board(status_kinds: list[ActionKind]) -> QCReport:
+def _board(status_kinds: list[ActionKind], *, signed_off: bool = True) -> QCReport:
     tile_reports = [_tile_report(kind) for kind in status_kinds]
     return aggregate_board(
         board_id="board-1",
@@ -69,6 +69,7 @@ def _board(status_kinds: list[ActionKind]) -> QCReport:
         operator_id="op-1",
         started_at=datetime.now(UTC),
         tile_reports=tile_reports,
+        operator_signoff_at=datetime.now(UTC) if signed_off else None,
     )
 
 
@@ -119,6 +120,16 @@ def test_lot_approved_when_clean() -> None:
 
     assert summary.status is LotStatus.APPROVED
     assert summary.pass_count == 5
+
+
+def test_lot_in_progress_until_all_boards_signed_off() -> None:
+    boards = [_board([ActionKind.PASS]) for _ in range(4)]
+    boards.append(_board([ActionKind.PASS], signed_off=False))
+
+    summary = aggregate_lot("lot-1", boards)
+
+    assert summary.status is LotStatus.IN_PROGRESS
+    assert summary.finalized_at is None
 
 
 def test_persist_board_writes_report_and_event() -> None:

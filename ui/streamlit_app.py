@@ -22,7 +22,14 @@ import streamlit as st
 from roboqc_agent.agents.evidence_report import aggregate_board, summarize_board
 from roboqc_agent.graph import InspectionProvider, RoboQCPipeline
 from roboqc_agent.providers.demo import DemoProvider
-from roboqc_agent.schemas import Action, ActionKind, TilePosition, TileReport
+from roboqc_agent.schemas import (
+    Action,
+    ActionKind,
+    OperatorAction,
+    OperatorResponse,
+    TilePosition,
+    TileReport,
+)
 
 _ACTION_COLOR = {
     ActionKind.PASS: "🟢",
@@ -151,6 +158,62 @@ def _inspect_view() -> None:
         if action.triggered_hitl:
             st.warning("Human-in-the-loop gate triggered — operator decision required.")
         _render_agent_breakdown(report)
+        _operator_decision_form(report)
+
+
+def _replace_report(updated: TileReport) -> None:
+    reports: list[TileReport] = st.session_state.tile_reports
+    for i, existing in enumerate(reports):
+        if existing.tile.tile_id == updated.tile.tile_id:
+            reports[i] = updated
+            break
+
+
+def _operator_decision_form(report: TileReport) -> None:
+    """Capture the operator's accept/override decision (operator_workflow §2.8)."""
+
+    st.markdown("#### Operator decision")
+    if report.operator_response is not None:
+        resp = report.operator_response
+        detail = f" — {resp.rationale}" if resp.rationale else ""
+        st.success(f"Recorded: {resp.action.value} → {resp.final_kind.value.upper()}{detail}")
+        return
+
+    cfg = st.session_state.session_cfg
+    tile_id = report.tile.tile_id
+    choice = st.radio("Decision", ["Accept", "Override"], horizontal=True, key=f"dec_{tile_id}")
+
+    final_kind = report.agent_action.kind
+    rationale: str | None = None
+    if choice == "Override":
+        kinds = [k.value for k in ActionKind]
+        selected = st.selectbox(
+            "Override action",
+            kinds,
+            index=kinds.index(report.agent_action.kind.value),
+            key=f"kind_{tile_id}",
+        )
+        final_kind = ActionKind(selected)
+        rationale = st.text_input("Rationale (required for override)", key=f"why_{tile_id}")
+
+    if st.button("Record decision", key=f"rec_{tile_id}"):
+        if choice == "Override" and not rationale:
+            st.error("Rationale is required for an override.")
+            return
+        response = OperatorResponse(
+            tile_id=tile_id,
+            operator_id=cfg["operator_id"],
+            action=OperatorAction.ACCEPT if choice == "Accept" else OperatorAction.OVERRIDE,
+            final_kind=final_kind,
+            rationale=rationale,
+            responded_at=datetime.now(UTC),
+        )
+        updated = report.model_copy(
+            update={"operator_response": response, "finalized_at": datetime.now(UTC)}
+        )
+        _replace_report(updated)
+        st.session_state.last_report = updated
+        st.rerun()
 
 
 def _rollup_view() -> None:
@@ -182,8 +245,11 @@ def _rollup_view() -> None:
 
     action_counts: dict[str, int] = {}
     for tr in reports:
-        kind = tr.agent_action.kind.value
-        action_counts[kind] = action_counts.get(kind, 0) + 1
+        # Reflect the operator's override when present, else the agent action.
+        effective = (
+            tr.operator_response.final_kind if tr.operator_response else tr.agent_action.kind
+        )
+        action_counts[effective.value] = action_counts.get(effective.value, 0) + 1
     st.markdown("**Per-tile actions**")
     st.table([{"action": k, "tiles": v} for k, v in action_counts.items()])
 

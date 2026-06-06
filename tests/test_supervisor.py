@@ -95,6 +95,22 @@ def test_uncertain_defect_overrides_confident_critical() -> None:
     assert action.confidence == 0.97
 
 
+def test_unmapped_defect_forces_human_review_not_pass() -> None:
+    # FMEA returned fewer entries than defects: the critical short_circuit has no
+    # FMEA entry. The tile must NOT pass on the minor spur alone.
+    tile_id = uuid4()
+    spur = _defect(tile_id, DefectClass.SPUR, 0.97)
+    short = _defect(tile_id, DefectClass.SHORT_CIRCUIT, 0.97)
+    action = decide_action(
+        tile_id,
+        [spur, short],
+        [_fmea(spur, Severity.MINOR, ActionKind.PASS)],  # only one entry
+    )
+
+    assert action.kind is ActionKind.HUMAN_REVIEW
+    assert action.triggered_hitl is True
+
+
 def test_escalate_flag_sets_hitl_without_changing_action() -> None:
     tile_id = uuid4()
     defect = _defect(tile_id, DefectClass.TOMBSTONING, 0.99, source="anomaly_arm")

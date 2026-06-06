@@ -136,7 +136,10 @@ def aggregate_lot(lot_id: str, qc_reports: Sequence[QCReport]) -> LotSummary:
     hold_count = sum(1 for r in reports if r.status is BoardStatus.COMPLETE_HOLD)
 
     total = len(reports)
-    if any(r.status is BoardStatus.IN_PROGRESS for r in reports) or total == 0:
+    # A lot is only APPROVED/HOLD once every board is complete AND signed off by
+    # the operator (operator_workflow.md §4: "after all boards are signed off").
+    not_signed_off = any(r.operator_signoff_at is None for r in reports)
+    if total == 0 or any(r.status is BoardStatus.IN_PROGRESS for r in reports) or not_signed_off:
         status = LotStatus.IN_PROGRESS
     elif hold_count / total > LOT_HOLD_THRESHOLD:
         status = LotStatus.HOLD_FOR_ENGINEERING

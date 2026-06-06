@@ -112,6 +112,34 @@ Compliance scan clean (no forbidden hardware/brand terms).
 - Board/lot finalize HTTP endpoints on the FastAPI service (`api.py` is health
   only; aggregation functions exist and are tested).
 
+## Round 2 — review fixes applied
+
+All three blocking/medium findings from the Codex review pass are resolved.
+
+1. **High — FMEA length mismatch / false pass (fixed).**
+   `supervisor.decide_action` now guards: if any defect has no matching FMEA
+   entry (`len(fmea_entries) != len(defects)` or id mismatch), it returns
+   `HUMAN_REVIEW` before any action aggregation. A critical defect can no longer
+   slip through as PASS. Regression test:
+   `tests/test_supervisor.py::test_unmapped_defect_forces_human_review_not_pass`
+   (2 defects, 1 FMEA entry → HUMAN_REVIEW).
+
+2. **Medium — Streamlit HITL display-only (fixed).**
+   `ui/streamlit_app.py` adds an operator decision form: Accept / Override with a
+   required rationale on override, producing an `OperatorResponse` and finalizing
+   the `TileReport` (`operator_response` + `finalized_at`). The rollup per-tile
+   action table now reflects the operator's effective decision.
+
+3. **Medium — lot approval ignored board signoff (fixed).**
+   `aggregate_lot` now returns `IN_PROGRESS` while any board has
+   `operator_signoff_at is None`; `APPROVED` / `HOLD_FOR_ENGINEERING` require all
+   boards signed off. Regression test:
+   `tests/test_evidence_report.py::test_lot_in_progress_until_all_boards_signed_off`.
+
+Order-based FMEA linkage is kept, now gated by the mismatch guard (per the
+review's stated condition). Suite: **51 passed**; ruff + black + mypy --strict
+clean.
+
 ## One open question for the founder (not a code issue)
 
 Naming: the repo calls the **software** "RoboQC Agent" everywhere, while the
