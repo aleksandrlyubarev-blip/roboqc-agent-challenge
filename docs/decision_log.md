@@ -219,3 +219,73 @@ in about 60 seconds.
   now.
 - **Reversible:** yes.
 - **Revisit after:** when v0.1 prompt files are committed.
+
+## 2026-06-06 — Agents emit observation models; code assigns identities
+
+- **Decided by:** Claude (code)
+- **Area:** code
+- **Decision:** Vision Inspector returns `DefectObservation`
+  (class/bbox/confidence/source) and FMEA Risk returns `FMEAObservation`
+  (severity/default_action/justification/escalate). Code links them to the
+  frozen `Defect` / `FMEAEntry` contracts: `to_defects` assigns `tile_id` /
+  `defect_id` (plus confidence floor and dedup), `to_fmea_entries` re-attaches
+  `defect_id` by input order.
+- **Context:** the model cannot know `tile_id` / `defect_id`; making them part
+  of the structured-output schema would force the model to invent provenance.
+- **Alternatives considered:** keep `list[Defect]` / `list[FMEAEntry]` as the
+  model schema and post-fix ids; pass ids into the prompt and have the model
+  echo them; introduce observation models mapped in code.
+- **Why this won:** identities are provenance the system owns, not content the
+  model observes; observation models keep the frozen schemas authoritative and
+  the Gemini calls robust.
+- **Impact on other agent:** `schemas.py` is unchanged; the inter-agent record
+  shapes (`Defect`, `FMEAEntry`) are unchanged. Only the LLM structured-output
+  surface changed, with mapping helpers in the agent modules.
+- **Reversible:** yes.
+- **Revisit after:** if a future ADK Runner path consumes the schemas directly.
+
+## 2026-06-06 — Supervisor is deterministic; aggregates per-defect policy decisions
+
+- **Decided by:** Claude (code)
+- **Area:** code
+- **Decision:** `supervisor.decide_action` runs each (defect, FMEA entry) pair
+  through `FrictionPolicyEngine` (architecture §6) and takes the most-stopping
+  action by precedence `human_review > hold > rework > pass`. `Action.reason` is
+  generated deterministically (architecture §13.3 recommended default), so the
+  Supervisor makes no Gemini call on the per-tile critical path.
+- **Context:** §2.4 frames the low-confidence HITL gate on aggregate (max)
+  confidence, while §6 makes the policy engine the canonical per-defect HITL
+  mechanism. The two needed reconciling in code.
+- **Alternatives considered:** aggregate-max gate per §2.4; per-defect policy
+  aggregation per §6; an LLM Supervisor for the action itself.
+- **Why this won:** per-defect aggregation is the §6 mechanism and is strictly
+  safer — any uncertain defect routes the whole tile to a human, the correct
+  default for first-article inspection. `Action.confidence` still stores the
+  aggregate max per the schema.
+- **Impact on other agent:** this is a deliberate refinement of the §2.4 default
+  HITL gate (per-defect, not aggregate-max), logged here per doc-hygiene. Demos
+  and narrative should describe HITL as "any low-confidence defect → human".
+- **Reversible:** yes.
+- **Revisit after:** when conformal-calibration HITL (`hitl/`) refines thresholds.
+
+## 2026-06-06 — v1 graph executes the sequential composition via the provider
+
+- **Decided by:** Claude (code)
+- **Area:** code
+- **Decision:** `graph.RoboQCPipeline` runs the architecture §5.1 sequence
+  (Vision → FMEA → Supervisor → Evidence) by driving the two ADK `LlmAgent`
+  definitions through the injected Vertex provider, with Supervisor and Evidence
+  as deterministic code stages. A `DemoProvider` gives a deterministic,
+  taxonomy-consistent offline path so the UI and CI run with no GCP credentials.
+- **Context:** the demo must be runnable and the suite testable offline; a full
+  ADK `Runner` + `SequentialAgent` execution needs live model credentials and a
+  session service that cannot run in CI.
+- **Alternatives considered:** full ADK Runner execution now; provider-driven
+  sequential pipeline with injectable provider; mock the ADK Runner in tests.
+- **Why this won:** it keeps the ADK `LlmAgent` factories as the single source
+  of agent configuration, makes the whole flow testable and demoable offline,
+  and leaves a clean seam to adopt the ADK Runner post-submission.
+- **Impact on other agent:** treat `RoboQCPipeline` as the executable graph; the
+  ADK agent factories remain the declarative agent definitions.
+- **Reversible:** yes.
+- **Revisit after:** when adopting the ADK `Runner` for in-graph execution.
