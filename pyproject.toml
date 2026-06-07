@@ -27,6 +27,9 @@ dev = [
   "pytest-asyncio",
   "ruff",
 ]
+ui = [
+  "streamlit",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/roboqc_agent"]
