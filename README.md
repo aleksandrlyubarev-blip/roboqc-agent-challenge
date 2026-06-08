@@ -88,7 +88,7 @@ graph TD
 | **Structured output** | Pydantic v2 — all agent outputs are strictly typed |
 | **UI** | Streamlit — live agent progress, colour-coded verdict badge, Evidence Log |
 | **Deployment** | Cloud Run — serverless, scales to zero |
-| **IaC** | Terraform (in `infra/cloudrun/`) |
+| **Deploy tooling** | `gcloud` + Cloud Build (`scripts/deploy_cloudrun.sh`) |
 
 ---
 
@@ -135,9 +135,29 @@ Upload any PCB photo — the 5-agent brigade analyses it in seconds.
 
 ## Deploy to Cloud Run
 
+### Prerequisites
+
+- [`gcloud` CLI](https://cloud.google.com/sdk/docs/install) installed and authenticated (`gcloud auth login`)
+- [Docker](https://docs.docker.com/get-docker/) installed (used by `gcloud auth configure-docker`)
+- A Google Cloud project with **Vertex AI API** enabled
+  (`gcloud services enable aiplatform.googleapis.com`)
+- A `.env` file with `GOOGLE_CLOUD_PROJECT` set (copy from `.env.example`)
+
+### One-command deploy (recommended)
+
+```bash
+./scripts/deploy_cloudrun.sh
+```
+
+This reads `GOOGLE_CLOUD_PROJECT` (and optional `GOOGLE_CLOUD_REGION`,
+default `us-central1`) from `.env`, configures Docker auth, builds the image
+with Cloud Build, deploys to Cloud Run, and prints the service URL.
+
+### Manual deploy
+
 ```bash
 # Build and push
-gcloud builds submit --tag gcr.io/YOUR_PROJECT/neuron-vision-display
+gcloud builds submit --tag gcr.io/YOUR_PROJECT/neuron-vision-display .
 
 # Deploy
 gcloud run deploy neuron-vision-display \
@@ -145,14 +165,15 @@ gcloud run deploy neuron-vision-display \
   --platform managed \
   --region us-central1 \
   --allow-unauthenticated \
-  --set-env-vars GOOGLE_CLOUD_PROJECT=YOUR_PROJECT
+  --memory 2Gi \
+  --cpu 2 \
+  --timeout 300 \
+  --set-env-vars GOOGLE_CLOUD_PROJECT=YOUR_PROJECT,GOOGLE_CLOUD_REGION=us-central1
 ```
 
-Or use the included Terraform:
-```bash
-cd infra/cloudrun
-terraform init && terraform apply
-```
+> The `infra/cloudrun/` directory holds an alternative deploy scaffold
+> (`deploy.sh` + `cloudbuild.yaml` + `service.yaml`) for the authenticated
+> `roboqc-agent` API service.
 
 ---
 
@@ -201,11 +222,12 @@ roboqc-agent-challenge/
 │   │       └── chief_inspector.py
 │   └── [existing ADK pipeline]     # Original 4-agent tile pipeline
 ├── scripts/
-│   └── download_datasets.sh        # DeepPCB · VisA · PKU-Market-PCB
+│   ├── download_datasets.sh        # DeepPCB · VisA · PKU-Market-PCB
+│   └── deploy_cloudrun.sh          # One-command Cloud Run deploy
 ├── examples/
 │   └── pcb_samples/                # Sample images for demo
 ├── infra/
-│   └── cloudrun/                   # Terraform IaC
+│   └── cloudrun/                   # Alt deploy scaffold (roboqc-agent API)
 └── docs/
     └── architecture.md
 ```

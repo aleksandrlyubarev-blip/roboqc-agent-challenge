@@ -1,0 +1,27 @@
+# Secrets and local config — never ship into the image
+.env
+
+# Version control
+.git
+.gitignore
+
+# Python caches and bytecode
+__pycache__/
+*.pyc
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Backups
+*.bak
+
+# Sample / downloaded data (not needed at runtime)
+examples/pcb_samples/
+
+# Node and virtualenvs
+node_modules
+.venv
+
+# Local audio fixtures and misc large files
+*.wav
+.DS_Store
