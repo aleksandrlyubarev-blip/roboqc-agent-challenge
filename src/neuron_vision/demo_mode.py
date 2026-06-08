@@ -1,27 +1,16 @@
 """
-Demo / Mock Mode for Neuron Vision Display.
+Demo Mode — Neuron Vision Display (RomeoFlexVision)
 
-Drop-in replacement for :class:`NeuronVisionPipeline` that returns realistic,
-fully-typed :class:`PipelineResult` objects **without** any Vertex AI / Gemini
-calls.  This keeps the hackathon demo alive on machines that have no GCP project,
-no credentials, or no network access.
+Drop-in replacement for NeuronVisionPipeline that runs without Vertex AI.
+Provides three realistic QC scenarios for live hackathon demonstrations.
 
-Enable it with the env-var ``DEMO_MODE=true`` or the sidebar toggle in ``app.py``.
-
-Usage::
-
-    pipeline = DemoPipeline()
-    result = pipeline.run(image_bytes, on_stage=callback)
-
-The public surface (``run`` / ``run_async`` signatures + return type) is identical
-to :class:`NeuronVisionPipeline`, so it can be swapped in transparently.
+Activate via:
+  - Environment variable: DEMO_MODE=true
+  - Or pass demo_mode=True to DemoPipeline.__init__()
 """
 from __future__ import annotations
 
-import asyncio
 import hashlib
-import logging
-import os
 import time
 from typing import Callable
 
@@ -38,48 +27,31 @@ from .schemas import (
     TriageResult,
 )
 
-logger = logging.getLogger(__name__)
-
-# Per-stage simulated latency (seconds).  Roughly mimics a real Gemini round-trip
-# while staying snappy enough for a live demo (~6-7s total across 5 stages).
-_STAGE_DELAY = (0.8, 1.4)  # (min, max) — deterministic value derived from seed
-
-
-def is_demo_mode() -> bool:
-    """True when DEMO_MODE env-var is set to a truthy value."""
-    return os.environ.get("DEMO_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
-
-
 # ---------------------------------------------------------------------------
-# Scenario builders — each returns a fully-populated PipelineResult (minus the
-# duration, which the pipeline stamps after running).
+# Scenario 1: PASS — clean board, one minor solder concern
 # ---------------------------------------------------------------------------
 
 def _scenario_pass() -> PipelineResult:
-    """Scenario 1 — clean board, single minor cosmetic solder note. → PASS."""
     triage = TriageResult(
-        board_type="double-layer SMT, 0.8 mm pitch",
-        risk_zones=["U3 fine-pitch QFP", "J1 board-edge connector", "C-array decoupling bank"],
+        board_type="Double-layer SMT (mixed SMD + through-hole)",
+        risk_zones=["Fine-pitch IC U3 (0.5mm pitch)", "Electrolytic caps C12–C15"],
         inspection_priority="medium",
         confidence=0.94,
-        notes="Reflow profile looks consistent. No obvious panel-level anomalies.",
+        notes="Good image quality. Board appears clean with no visible contamination.",
     )
     solder = SolderReport(
         defects=[
             SolderDefect(
-                defect_type="excess_solder",
-                location="R12 pad B",
+                defect_type="insufficient_solder",
+                location="R12 pin 2",
                 severity="minor",
                 confidence=0.71,
-            ),
+            )
         ],
         overall_solder_quality="acceptable",
-        inspected_joints_estimate=248,
-        confidence=0.92,
-        summary=(
-            "All joints within IPC-A-610 Class 2 limits. One cosmetic excess-solder "
-            "fillet at R12 — no electrical risk, no rework required."
-        ),
+        inspected_joints_estimate=284,
+        confidence=0.91,
+        summary="284 joints inspected. One minor under-fill on R12 pin 2 — within acceptable tolerance. All other joints show good wetting and fillet formation.",
     )
     components = ComponentReport(
         issues=[],
@@ -88,7 +60,7 @@ def _scenario_pass() -> PipelineResult:
         shifted=[],
         overall_placement_quality="acceptable",
         confidence=0.96,
-        summary="All 84 placed components present and within placement tolerance.",
+        summary="All components present and correctly placed. No orientation or shift issues detected.",
     )
     markings = MarkingReport(
         issues=[],
@@ -96,413 +68,267 @@ def _scenario_pass() -> PipelineResult:
         missing_marks=[],
         qr_valid=True,
         overall_marking_quality="acceptable",
-        confidence=0.95,
-        summary="Silkscreen crisp, polarity marks present, QR/DataMatrix decodes cleanly.",
+        confidence=0.93,
+        summary="All silkscreen markings legible. QR code scanned successfully. Polarity indicators present on all polarised components.",
     )
     verdict = QCVerdict(
         status="pass",
         evidence_log=[
-            EvidenceEntry(
-                source_agent="triage",
-                finding="Double-layer SMT board, reflow profile consistent across panel.",
-                severity="info",
-            ),
-            EvidenceEntry(
-                source_agent="solder_inspector",
-                finding="Minor cosmetic excess solder at R12 — within Class 2 tolerance.",
-                severity="minor",
-            ),
-            EvidenceEntry(
-                source_agent="component_inspector",
-                finding="All 84 components present and correctly placed.",
-                severity="info",
-            ),
-            EvidenceEntry(
-                source_agent="marking_inspector",
-                finding="QR/DataMatrix valid; silkscreen and polarity marks legible.",
-                severity="info",
-            ),
+            EvidenceEntry(source_agent="triage", finding="Board type confirmed: double-layer SMT. Medium priority inspection.", severity="info"),
+            EvidenceEntry(source_agent="solder_inspector", finding="Minor under-fill on R12 pin 2 — within tolerance, no functional risk.", severity="minor"),
+            EvidenceEntry(source_agent="component_inspector", finding="All 47 components present and correctly placed.", severity="info"),
+            EvidenceEntry(source_agent="marking_inspector", finding="QR code valid. All silkscreen markings legible.", severity="info"),
         ],
         critical_findings=[],
         confidence=0.93,
-        summary="Board passes QC. One cosmetic solder note logged; cleared to ship.",
-        recommended_actions=[
-            "Release board to next assembly stage.",
-            "Log R12 cosmetic fillet for SPC trend monitoring (no action required).",
-        ],
+        summary="Board meets QC criteria. One minor solder concern on R12 is within tolerance. Clear to proceed to final test.",
+        recommended_actions=["Optional: reflow R12 pin 2 solder joint at next opportunity (non-blocking)"],
     )
     return PipelineResult(
-        triage=triage,
-        solder=solder,
-        components=components,
-        markings=markings,
-        verdict=verdict,
-        duration_seconds=0.0,
+        triage=triage, solder=solder, components=components,
+        markings=markings, verdict=verdict, duration_seconds=8.4,
     )
 
 
+# ---------------------------------------------------------------------------
+# Scenario 2: REWORK — solder bridges + shifted component
+# ---------------------------------------------------------------------------
+
 def _scenario_rework() -> PipelineResult:
-    """Scenario 2 — 2 moderate solder defects + 1 shifted component. → REWORK."""
     triage = TriageResult(
-        board_type="double-layer SMT, mixed 0.5/0.8 mm pitch",
-        risk_zones=["U4 QFN underside", "C7/C8 decoupling pair", "L2 inductor footprint"],
+        board_type="Multi-layer SMT (4-layer, BGA + fine-pitch ICs)",
+        risk_zones=["BGA cluster U1 (0.8mm pitch, 256-ball)", "Fine-pitch IC U5 (0.4mm pitch)", "Power connector J3"],
         inspection_priority="high",
-        confidence=0.91,
-        notes="Localised reflow inconsistency near U4 — flagged for solder specialist.",
+        confidence=0.89,
+        notes="Visible flux residue near J3. BGA region requires close attention.",
     )
     solder = SolderReport(
         defects=[
-            SolderDefect(
-                defect_type="cold_joint",
-                location="U4 pin 7",
-                severity="moderate",
-                confidence=0.84,
-            ),
-            SolderDefect(
-                defect_type="insufficient_solder",
-                location="C8 pad A",
-                severity="moderate",
-                confidence=0.79,
-            ),
-            SolderDefect(
-                defect_type="excess_solder",
-                location="R23 pad B",
-                severity="minor",
-                confidence=0.68,
-            ),
+            SolderDefect(defect_type="solder_bridge", location="U5 pins 14–15", severity="critical", confidence=0.93),
+            SolderDefect(defect_type="cold_joint", location="J3 pin 4", severity="moderate", confidence=0.82),
+            SolderDefect(defect_type="excess_solder", location="C4 positive pad", severity="minor", confidence=0.76),
         ],
-        overall_solder_quality="marginal",
-        inspected_joints_estimate=312,
-        confidence=0.86,
-        summary=(
-            "Two reworkable solder defects detected: cold joint at U4.7 and "
-            "insufficient solder at C8. Both addressable with localised touch-up."
-        ),
+        overall_solder_quality="reject",
+        inspected_joints_estimate=412,
+        confidence=0.88,
+        summary="Critical solder bridge detected between U5 pins 14–15 — short circuit risk. Cold joint at J3 pin 4. Minor excess solder at C4.",
     )
     components = ComponentReport(
         issues=[
             ComponentIssue(
-                component_ref="C12",
+                component_ref="R7",
                 issue_type="shifted",
                 severity="moderate",
-                confidence=0.82,
-                details="~0.35 mm X-offset, exceeds 0.25 mm placement tolerance.",
-            ),
+                confidence=0.85,
+                details="Shifted ~0.3mm south, one pad edge exposed. Risk of intermittent contact.",
+            )
         ],
         missing=[],
         misoriented=[],
-        shifted=["C12"],
+        shifted=["R7"],
         overall_placement_quality="marginal",
-        confidence=0.88,
-        summary="C12 placement shift beyond tolerance; remaining components nominal.",
+        confidence=0.87,
+        summary="R7 is shifted 0.3mm — may cause intermittent contact. All other components placed correctly.",
     )
     markings = MarkingReport(
-        issues=[],
-        unreadable=[],
+        issues=[
+            MarkingIssue(area="J3 area", issue_type="illegible", severity="minor", confidence=0.78)
+        ],
+        unreadable=["J3 connector label"],
         missing_marks=[],
         qr_valid=True,
         overall_marking_quality="acceptable",
-        confidence=0.93,
-        summary="Markings legible, QR decodes. No labeling defects.",
+        confidence=0.88,
+        summary="Silkscreen near J3 partially obscured by flux residue. QR code valid. All polarity marks visible.",
     )
     verdict = QCVerdict(
         status="rework",
         evidence_log=[
-            EvidenceEntry(
-                source_agent="triage",
-                finding="Localised reflow inconsistency near U4 flagged as high priority.",
-                severity="moderate",
-            ),
-            EvidenceEntry(
-                source_agent="solder_inspector",
-                finding="Cold joint at U4 pin 7 — reworkable, moderate severity.",
-                severity="moderate",
-            ),
-            EvidenceEntry(
-                source_agent="solder_inspector",
-                finding="Insufficient solder at C8 pad A — add solder, moderate severity.",
-                severity="moderate",
-            ),
-            EvidenceEntry(
-                source_agent="component_inspector",
-                finding="C12 shifted ~0.35 mm beyond placement tolerance.",
-                severity="moderate",
-            ),
-            EvidenceEntry(
-                source_agent="marking_inspector",
-                finding="All markings legible; QR valid.",
-                severity="info",
-            ),
+            EvidenceEntry(source_agent="triage", finding="High-risk zones: BGA U1, fine-pitch U5, power connector J3.", severity="info"),
+            EvidenceEntry(source_agent="solder_inspector", finding="CRITICAL: Solder bridge between U5 pins 14–15 — guaranteed short circuit.", severity="critical"),
+            EvidenceEntry(source_agent="solder_inspector", finding="Cold joint at J3 pin 4 — intermittent connection risk.", severity="moderate"),
+            EvidenceEntry(source_agent="solder_inspector", finding="Excess solder at C4 positive pad — cosmetic, no functional impact.", severity="minor"),
+            EvidenceEntry(source_agent="component_inspector", finding="R7 shifted 0.3mm south — edge pad exposure, moderate risk.", severity="moderate"),
+            EvidenceEntry(source_agent="marking_inspector", finding="J3 label partially obscured by flux residue.", severity="minor"),
         ],
-        critical_findings=[],
-        confidence=0.85,
-        summary=(
-            "Board requires rework: 2 solder defects (U4.7 cold joint, C8 "
-            "insufficient solder) and 1 component shift (C12). All reworkable."
-        ),
+        critical_findings=["Solder bridge U5 pins 14–15 (short circuit risk)"],
+        confidence=0.91,
+        summary="Board requires rework. Critical solder bridge on U5 must be resolved before testing. R7 placement and J3 cold joint also need attention.",
         recommended_actions=[
-            "Touch up cold joint at U4 pin 7 with controlled reflow.",
-            "Add solder to C8 pad A and re-inspect fillet geometry.",
-            "Re-seat C12 within placement tolerance.",
-            "Re-run QC after rework to confirm pass.",
+            "Remove solder bridge between U5 pins 14–15 using solder wick",
+            "Reflow cold joint at J3 pin 4 with flux",
+            "Realign and reflow R7 (0.3mm south shift)",
+            "Clean flux residue near J3 and verify label readability",
         ],
     )
     return PipelineResult(
-        triage=triage,
-        solder=solder,
-        components=components,
-        markings=markings,
-        verdict=verdict,
-        duration_seconds=0.0,
+        triage=triage, solder=solder, components=components,
+        markings=markings, verdict=verdict, duration_seconds=11.2,
     )
 
 
+# ---------------------------------------------------------------------------
+# Scenario 3: HUMAN REVIEW — missing component + critical issues
+# ---------------------------------------------------------------------------
+
 def _scenario_human_review() -> PipelineResult:
-    """Scenario 3 — critical bridge + missing component + illegible QR. → HUMAN_REVIEW."""
     triage = TriageResult(
-        board_type="double-layer SMT, high-density 0.4 mm pitch",
-        risk_zones=["U3 BGA cluster", "U7 fine-pitch QFN", "J1 power connector", "QR label zone"],
+        board_type="Single-layer SMT (consumer electronics)",
+        risk_zones=["Power management IC U2", "Bulk capacitors C1–C3 (polarised)", "Test points TP1–TP8"],
         inspection_priority="critical",
-        confidence=0.89,
-        notes="Multiple high-severity anomalies suspected — escalating to full brigade.",
+        confidence=0.87,
+        notes="Image quality adequate but oblique angle reduces confidence on fine-pitch areas. Possible burn mark visible near U2.",
     )
     solder = SolderReport(
         defects=[
-            SolderDefect(
-                defect_type="solder_bridge",
-                location="U7 pins 14-15",
-                severity="critical",
-                confidence=0.93,
-            ),
-            SolderDefect(
-                defect_type="cold_joint",
-                location="U3 ball E4",
-                severity="moderate",
-                confidence=0.74,
-            ),
+            SolderDefect(defect_type="cold_joint", location="U2 pin 1", severity="critical", confidence=0.88),
+            SolderDefect(defect_type="void", location="U2 pin 3", severity="critical", confidence=0.79),
+            SolderDefect(defect_type="insufficient_solder", location="L1 output pad", severity="moderate", confidence=0.83),
         ],
         overall_solder_quality="reject",
-        inspected_joints_estimate=486,
-        confidence=0.9,
-        summary=(
-            "Critical solder bridge shorting U7 pins 14-15 — potential short circuit. "
-            "Suspected cold joint under BGA U3 ball E4 requires X-ray confirmation."
-        ),
+        inspected_joints_estimate=178,
+        confidence=0.84,
+        summary="Multiple critical defects around power IC U2. Cold joint and suspected void are safety-relevant in a power path.",
     )
     components = ComponentReport(
         issues=[
-            ComponentIssue(
-                component_ref="R8",
-                issue_type="missing",
-                severity="critical",
-                confidence=0.95,
-                details="Pads bare, no component or solder present. Confirmed missing.",
-            ),
-            ComponentIssue(
-                component_ref="D2",
-                issue_type="misoriented",
-                severity="moderate",
-                confidence=0.81,
-                details="Cathode band orientation reversed relative to silkscreen.",
-            ),
+            ComponentIssue(component_ref="C2", issue_type="missing", severity="critical", confidence=0.96, details="Bulk decoupling cap C2 (100µF) not populated — power rail instability risk."),
+            ComponentIssue(component_ref="C1", issue_type="misoriented", severity="critical", confidence=0.91, details="Electrolytic capacitor C1 reversed — anode/cathode swapped, will fail under power."),
         ],
-        missing=["R8"],
-        misoriented=["D2"],
+        missing=["C2"],
+        misoriented=["C1"],
         shifted=[],
         overall_placement_quality="reject",
-        confidence=0.91,
-        summary="R8 missing entirely; D2 reverse-mounted. Board not functional as-is.",
+        confidence=0.90,
+        summary="C2 missing (power decoupling). C1 installed with reversed polarity — critical safety risk if powered.",
     )
     markings = MarkingReport(
         issues=[
-            MarkingIssue(
-                area="QR / DataMatrix label",
-                issue_type="qr_unreadable",
-                severity="critical",
-                confidence=0.88,
-            ),
-            MarkingIssue(
-                area="U3 reference designator",
-                issue_type="illegible",
-                severity="minor",
-                confidence=0.7,
-            ),
+            MarkingIssue(area="U2 region", issue_type="damaged", severity="moderate", confidence=0.82),
+            MarkingIssue(area="QR code", issue_type="qr_unreadable", severity="moderate", confidence=0.95),
+            MarkingIssue(area="C1 polarity mark", issue_type="incorrect_polarity_mark", severity="critical", confidence=0.88),
         ],
-        unreadable=["QR/DataMatrix label", "U3 silkscreen"],
+        unreadable=["U2 area silkscreen"],
         missing_marks=[],
         qr_valid=False,
         overall_marking_quality="reject",
-        confidence=0.87,
-        summary=(
-            "QR/DataMatrix unreadable — traceability broken. U3 designator partly "
-            "obscured. Board cannot be tracked through MES."
-        ),
+        confidence=0.86,
+        summary="Silkscreen near U2 appears heat-damaged. QR code unreadable — traceability compromised. Polarity mark on C1 may be incorrect.",
     )
     verdict = QCVerdict(
         status="human_review",
         evidence_log=[
-            EvidenceEntry(
-                source_agent="solder_inspector",
-                finding="Critical solder bridge shorting U7 pins 14-15 — short-circuit risk.",
-                severity="critical",
-            ),
-            EvidenceEntry(
-                source_agent="component_inspector",
-                finding="R8 confirmed missing — bare pads, no solder.",
-                severity="critical",
-            ),
-            EvidenceEntry(
-                source_agent="marking_inspector",
-                finding="QR/DataMatrix label unreadable — traceability broken.",
-                severity="critical",
-            ),
-            EvidenceEntry(
-                source_agent="component_inspector",
-                finding="D2 reverse-mounted (cathode band flipped).",
-                severity="moderate",
-            ),
-            EvidenceEntry(
-                source_agent="solder_inspector",
-                finding="Suspected cold joint under BGA U3 ball E4 — needs X-ray.",
-                severity="moderate",
-            ),
-            EvidenceEntry(
-                source_agent="triage",
-                finding="Multiple high-severity anomalies — escalated to full brigade.",
-                severity="critical",
-            ),
+            EvidenceEntry(source_agent="triage", finding="Possible burn mark near U2 — critical visual indicator.", severity="critical"),
+            EvidenceEntry(source_agent="solder_inspector", finding="Cold joint + void at U2 (power IC) — safety-critical path.", severity="critical"),
+            EvidenceEntry(source_agent="solder_inspector", finding="Insufficient solder on L1 output pad.", severity="moderate"),
+            EvidenceEntry(source_agent="component_inspector", finding="C2 (100µF bulk cap) missing — power rail will be unstable.", severity="critical"),
+            EvidenceEntry(source_agent="component_inspector", finding="C1 reversed polarity — SAFETY HAZARD, do not power.", severity="critical"),
+            EvidenceEntry(source_agent="marking_inspector", finding="QR code unreadable — traceability chain broken.", severity="moderate"),
+            EvidenceEntry(source_agent="marking_inspector", finding="Silkscreen near U2 heat-damaged — possible prior thermal event.", severity="moderate"),
         ],
         critical_findings=[
-            "Solder bridge U7 pins 14-15 (short-circuit risk)",
-            "Component R8 missing",
-            "QR/DataMatrix unreadable (traceability loss)",
+            "C1 reversed polarity — DO NOT POWER (electrolytic cap will vent/explode)",
+            "C2 missing — power rail instability",
+            "U2 solder joints critical — cold joint + void in power path",
+            "QR traceability broken",
         ],
-        confidence=0.9,
-        summary=(
-            "Board escalated to HUMAN REVIEW: critical solder bridge at U7, missing "
-            "R8, and unreadable QR. Combined severity exceeds auto-disposition policy."
-        ),
+        confidence=0.88,
+        summary="DO NOT POWER. Multiple safety-critical findings: reversed polarised cap (C1), missing decoupling cap (C2), compromised power IC solder joints. Escalate to senior QC engineer immediately.",
         recommended_actions=[
-            "Quarantine board — do not advance in line.",
-            "Escalate to senior QC engineer for manual disposition.",
-            "X-ray U3 BGA to confirm suspected cold joint at ball E4.",
-            "Investigate feeder for R8 (possible pick-and-place miss).",
-            "Re-print/re-apply QR label to restore MES traceability.",
+            "DO NOT POWER THIS BOARD under any circumstances",
+            "Remove and correctly reinstall C1 (check polarity mark orientation)",
+            "Populate missing C2 (100µF bulk decoupling capacitor)",
+            "Rework U2 solder joints — reflow pin 1 (cold joint) and pin 3 (void)",
+            "Inspect U2 for thermal damage — replace if burn mark confirmed",
+            "Re-print QR code label for traceability",
         ],
     )
     return PipelineResult(
-        triage=triage,
-        solder=solder,
-        components=components,
-        markings=markings,
-        verdict=verdict,
-        duration_seconds=0.0,
+        triage=triage, solder=solder, components=components,
+        markings=markings, verdict=verdict, duration_seconds=13.7,
     )
 
 
-# Ordered list of (name, builder).  Index used for deterministic file-name routing.
-_SCENARIOS: list[tuple[str, Callable[[], PipelineResult]]] = [
-    ("pass", _scenario_pass),
-    ("rework", _scenario_rework),
-    ("human_review", _scenario_human_review),
-]
+# ---------------------------------------------------------------------------
+# Scenario selector
+# ---------------------------------------------------------------------------
+
+_SCENARIOS = {
+    "pass":         _scenario_pass,
+    "rework":       _scenario_rework,
+    "human_review": _scenario_human_review,
+}
+
+_SCENARIO_KEYS = list(_SCENARIOS.keys())
+
+_STAGE_DELAYS = {
+    "triage":     1.2,
+    "solder":     2.1,
+    "components": 1.8,
+    "markings":   1.5,
+    "chief":      2.4,
+}
 
 
-def _select_scenario(image_bytes: bytes, filename: str | None) -> tuple[str, PipelineResult]:
-    """
-    Pick a scenario.
-
-    Routing priority:
-      1. Filename keyword hints (``pass`` / ``rework`` / ``review`` / ``fail``).
-      2. Deterministic hash of (filename or image bytes) → stable across reruns
-         of the *same* image, but varied across different images.
-    """
-    hint = (filename or "").lower()
-    if any(k in hint for k in ("pass", "good", "ok", "clean")):
-        idx = 0
-    elif any(k in hint for k in ("rework", "rwk", "repair")):
-        idx = 1
-    elif any(k in hint for k in ("review", "fail", "reject", "critical", "human")):
-        idx = 2
-    else:
-        # Deterministic but image-dependent selection.
-        seed_source = (filename or "").encode() or image_bytes[:4096] or b"neuron"
-        digest = hashlib.sha256(seed_source).digest()
-        idx = digest[0] % len(_SCENARIOS)
-
-    name, builder = _SCENARIOS[idx]
-    return name, builder()
+def _pick_scenario(image_bytes: bytes) -> str:
+    """Deterministic scenario selection based on image content hash."""
+    digest = hashlib.md5(image_bytes[:4096]).hexdigest()
+    index = int(digest[:2], 16) % len(_SCENARIO_KEYS)
+    return _SCENARIO_KEYS[index]
 
 
-def _stage_delay(seed: int, stage_index: int) -> float:
-    """Deterministic per-stage delay in [_STAGE_DELAY] derived from seed."""
-    lo, hi = _STAGE_DELAY
-    # Mix seed + stage to vary delays per stage without RNG (RNG is non-deterministic).
-    frac = ((seed * 31 + stage_index * 97) % 1000) / 1000.0
-    return lo + frac * (hi - lo)
-
+# ---------------------------------------------------------------------------
+# DemoPipeline — drop-in replacement for NeuronVisionPipeline
+# ---------------------------------------------------------------------------
 
 class DemoPipeline:
     """
-    Drop-in replacement for :class:`NeuronVisionPipeline` — no Vertex AI required.
+    Demo-mode pipeline for Neuron Vision Display.
 
-    Mirrors the real pipeline's ``run`` / ``run_async`` signatures and emits the
-    same ``on_stage`` callbacks ("triage", "solder", "components", "markings",
-    "chief") with simulated latency so the live progress UI behaves identically.
+    Runs without Vertex AI credentials — returns pre-built realistic
+    QC scenarios with simulated per-agent processing delays.
+
+    Interface is identical to NeuronVisionPipeline.run().
     """
 
-    #: Stage keys, in emission order — matches NeuronVisionPipeline.
-    STAGES = ("triage", "solder", "components", "markings", "chief")
+    STAGE_ORDER = ["triage", "solder", "components", "markings", "chief"]
+
+    def __init__(self, scenario: str | None = None, speed: float = 1.0) -> None:
+        """
+        Args:
+            scenario: Force a specific scenario ('pass', 'rework', 'human_review').
+                      If None, scenario is chosen deterministically from image hash.
+            speed:    Delay multiplier. 0.0 = instant, 1.0 = normal, 2.0 = slow.
+        """
+        self._scenario = scenario
+        self._speed = speed
 
     def run(
         self,
         image_bytes: bytes,
         on_stage: Callable[[str], None] | None = None,
-        filename: str | None = None,
     ) -> PipelineResult:
         """
-        Simulate a full QC run, returning a realistic :class:`PipelineResult`.
+        Simulate the 5-agent pipeline with realistic delays.
 
         Args:
-            image_bytes: Raw image bytes (used only to seed scenario selection).
-            on_stage:    Optional progress callback, called per stage.
-            filename:    Optional source filename — used as a routing hint so
-                         operators can force a scenario (e.g. ``board_rework.jpg``).
+            image_bytes: Raw image bytes (used for scenario selection if not forced).
+            on_stage:    Progress callback — same interface as NeuronVisionPipeline.
         """
-        t_start = time.perf_counter()
-        scenario_name, result = _select_scenario(image_bytes, filename)
-        seed = sum(image_bytes[:64]) + len(image_bytes)
-        logger.info("DemoPipeline: scenario=%s (simulated, no Vertex AI)", scenario_name)
+        scenario_key = self._scenario or _pick_scenario(image_bytes)
+        builder = _SCENARIOS.get(scenario_key, _scenario_rework)
 
-        for i, stage in enumerate(self.STAGES):
-            time.sleep(_stage_delay(seed, i))
+        # Simulate per-stage processing
+        for stage in self.STAGE_ORDER:
+            delay = _STAGE_DELAYS.get(stage, 1.5) * self._speed
+            if delay > 0:
+                time.sleep(delay)
             if on_stage:
                 on_stage(stage)
 
-        duration = time.perf_counter() - t_start
-        result = result.model_copy(update={"duration_seconds": round(duration, 2)})
-        logger.info(
-            "DemoPipeline: complete in %.2fs — verdict: %s", duration, result.verdict.status
-        )
+        result = builder()
         return result
 
-    async def run_async(
-        self,
-        image_bytes: bytes,
-        on_stage: Callable[[str], None] | None = None,
-        filename: str | None = None,
-    ) -> PipelineResult:
-        """Async variant — same behaviour, awaitable for parity with the real pipeline."""
-        t_start = time.perf_counter()
-        scenario_name, result = _select_scenario(image_bytes, filename)
-        seed = sum(image_bytes[:64]) + len(image_bytes)
-        logger.info("DemoPipeline: scenario=%s (simulated async)", scenario_name)
-
-        for i, stage in enumerate(self.STAGES):
-            await asyncio.sleep(_stage_delay(seed, i))
-            if on_stage:
-                on_stage(stage)
-
-        duration = time.perf_counter() - t_start
-        result = result.model_copy(update={"duration_seconds": round(duration, 2)})
-        return result
+    @classmethod
+    def available_scenarios(cls) -> list[str]:
+        return _SCENARIO_KEYS
