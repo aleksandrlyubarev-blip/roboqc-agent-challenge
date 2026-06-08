@@ -34,6 +34,9 @@ def build_roboqc_graph_skeleton(
         Evidence Report runs after all tiles are complete.
     """
 
+    # Issue #21 resolved: the Vision Inspector prompt now emits Defect-shaped
+    # objects (defect_class / bbox{x,y,w,h} / source) matching the frozen schema,
+    # so the skeleton builds without the schema-mismatch escape hatch.
     vision_inspector = build_vision_inspector_agent(model=model)
     fmea_risk = build_fmea_risk_agent(model=model)
     supervisor = build_supervisor_agent(model=model)
