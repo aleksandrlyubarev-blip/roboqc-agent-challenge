@@ -121,6 +121,12 @@ with st.sidebar:
             help="Force a specific QC outcome for the demo",
         )
 
+    phoenix_key = os.environ.get("PHOENIX_API_KEY", "")
+    if phoenix_key:
+        st.success("📡 Arize Phoenix tracing active")
+    else:
+        st.info("📡 [Optional] Add PHOENIX_API_KEY for Arize tracing")
+
     st.divider()
 
     # Example images from examples/ folder
