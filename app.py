@@ -79,6 +79,19 @@ st.markdown(
               text-align:center; border:1px solid #E0E0E0; }
 .metric-value { font-size:1.8rem; font-weight:700; color:#1565C0; }
 .metric-label { font-size:0.8rem; color:#607D8B; margin-top:2px; }
+
+/* ── Big centered verdict hero ─────────────────────────── */
+.verdict-hero { text-align:center; margin:14px 0 22px; }
+.verdict-hero .badge { display:inline-block; padding:18px 56px;
+                       border-radius:12px; font-size:2.4rem; font-weight:800;
+                       letter-spacing:3px; color:#fff;
+                       box-shadow:0 4px 14px rgba(0,0,0,0.18); }
+.badge-pass         { background:#2E7D32; }
+.badge-rework       { background:#E65100; }
+.badge-hold         { background:#F57F17; }
+.badge-human_review { background:#B71C1C; }
+.verdict-hero .subtitle { font-size:1.05rem; color:#455A64; margin-top:12px;
+                          max-width:760px; margin-left:auto; margin-right:auto; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -102,6 +115,23 @@ with st.sidebar:
     )
     if project_id:
         os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
+
+    # ── Demo / Mock mode ───────────────────────────────────────────────────
+    from src.neuron_vision.demo_mode import is_demo_mode as _env_demo_mode
+
+    _has_gcp = bool(os.environ.get("GOOGLE_CLOUD_PROJECT"))
+    demo_mode = st.checkbox(
+        "🎭 Demo Mode",
+        value=_env_demo_mode() or not _has_gcp,
+        help=(
+            "Run with realistic simulated results — no Vertex AI / GCP credentials "
+            "required. Ideal for offline demos."
+        ),
+    )
+    if demo_mode:
+        st.caption("⚡ Simulated results — no live model calls")
+    else:
+        st.caption("🛰️ Live Vertex AI Gemini 2.5 Pro")
 
     st.divider()
 
@@ -131,6 +161,16 @@ st.markdown(
     "**Multi-agent visual QC for SMT PCB manufacturing** — "
     "_powered by Google ADK + Gemini 2.5 Pro_"
 )
+
+if demo_mode:
+    st.markdown(
+        '<div style="background:#FFF8E1;border:1px solid #F9A825;border-left:6px solid '
+        '#F9A825;border-radius:6px;padding:10px 16px;margin:8px 0;color:#5D4037;'
+        'font-weight:600;">⚡ Running in demo mode — results are simulated '
+        '(no Vertex AI calls).</div>',
+        unsafe_allow_html=True,
+    )
+
 st.divider()
 
 # ── Image input ───────────────────────────────────────────────────────────────
@@ -173,7 +213,9 @@ st.divider()
 
 run_col, spacer = st.columns([2, 5])
 with run_col:
-    run_disabled = image_bytes is None or not os.environ.get("GOOGLE_CLOUD_PROJECT")
+    # In demo mode the only requirement is an image — no GCP project needed.
+    needs_gcp = not demo_mode and not os.environ.get("GOOGLE_CLOUD_PROJECT")
+    run_disabled = image_bytes is None or needs_gcp
     run_clicked = st.button(
         "▶️ Run QC Inspection",
         type="primary",
@@ -182,16 +224,21 @@ with run_col:
     )
     if image_bytes is None:
         st.caption("⬆️ Upload an image to enable inspection")
-    elif not os.environ.get("GOOGLE_CLOUD_PROJECT"):
-        st.caption("⚙️ Set GCP Project ID in the sidebar")
+    elif needs_gcp:
+        st.caption("⚙️ Set GCP Project ID — or enable 🎭 Demo Mode in the sidebar")
 
 # ── Inspection execution ──────────────────────────────────────────────────────
 if run_clicked and image_bytes:
-    try:
-        from src.neuron_vision.pipeline import NeuronVisionPipeline
-    except ImportError as e:
-        st.error(f"❌ Import error: {e}. Ensure you're running from the repo root with all dependencies installed.")
-        st.stop()
+    if demo_mode:
+        from src.neuron_vision.demo_mode import DemoPipeline
+        pipeline = DemoPipeline()
+    else:
+        try:
+            from src.neuron_vision.pipeline import NeuronVisionPipeline
+        except ImportError as e:
+            st.error(f"❌ Import error: {e}. Ensure you're running from the repo root with all dependencies installed.")
+            st.stop()
+        pipeline = NeuronVisionPipeline()
 
     st.divider()
     st.markdown("## 🤖 Agent Brigade — Live Progress")
@@ -248,12 +295,14 @@ if run_clicked and image_bytes:
         unsafe_allow_html=True,
     )
 
-    pipeline = NeuronVisionPipeline()
     t0 = time.perf_counter()
 
     with st.spinner("Running 5-agent QC brigade …"):
         try:
-            result = pipeline.run(image_bytes, on_stage=on_stage)
+            if demo_mode:
+                result = pipeline.run(image_bytes, on_stage=on_stage, filename=image_source)
+            else:
+                result = pipeline.run(image_bytes, on_stage=on_stage)
         except Exception as exc:
             st.error(f"❌ Pipeline error: {exc}")
             st.exception(exc)
@@ -286,33 +335,40 @@ if run_clicked and image_bytes:
     icon = VERDICT_ICONS.get(status, "❓")
     label = VERDICT_LABELS.get(status, status.upper())
 
-    vc1, vc2, vc3 = st.columns([2, 1, 1])
-    with vc1:
-        st.markdown(
-            f'<div class="verdict-{status}">{icon} {label}</div>',
-            unsafe_allow_html=True,
-        )
-        st.markdown(f"**{verdict.summary}**")
+    # ── Big centered verdict hero badge ────────────────────────────────────
+    st.markdown(
+        f'<div class="verdict-hero">'
+        f'<div class="badge badge-{status}">{icon} {label}</div>'
+        f'<div class="subtitle">{verdict.summary}</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
-    with vc2:
-        conf_pct = int(verdict.confidence * 100)
-        st.markdown(
-            f'<div class="metric-box">'
-            f'<div class="metric-value">{conf_pct}%</div>'
-            f'<div class="metric-label">Chief Inspector confidence</div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
+    # ── Metrics strip: Total Defects | Critical | Inspection Time | Confidence
+    total_defects = len(result.solder.defects) + len(result.components.issues) + len(result.markings.issues)
+    critical_count = (
+        sum(1 for d in result.solder.defects if d.severity == "critical")
+        + sum(1 for i in result.components.issues if i.severity == "critical")
+        + sum(1 for i in result.markings.issues if i.severity == "critical")
+    )
+    conf_pct = int(verdict.confidence * 100)
 
-    with vc3:
-        total_defects = len(result.solder.defects) + len(result.components.issues) + len(result.markings.issues)
-        st.markdown(
-            f'<div class="metric-box">'
-            f'<div class="metric-value">{total_defects}</div>'
-            f'<div class="metric-label">Total findings</div>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
+    METRICS = [
+        ("🧮", f"{total_defects}", "Total Defects", "#1565C0"),
+        ("🔴", f"{critical_count}", "Critical", "#B71C1C" if critical_count else "#1565C0"),
+        ("⏱️", f"{result.duration_seconds:.1f}s", "Inspection Time", "#1565C0"),
+        ("🎯", f"{conf_pct}%", "Confidence", "#1565C0"),
+    ]
+    mcols = st.columns(4)
+    for col, (m_icon, value, mlabel, color) in zip(mcols, METRICS):
+        with col:
+            st.markdown(
+                f'<div class="metric-box">'
+                f'<div class="metric-value" style="color:{color}">{m_icon} {value}</div>'
+                f'<div class="metric-label">{mlabel}</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
     # ── Recommended actions ────────────────────────────────────────────────
     if verdict.recommended_actions:
@@ -326,6 +382,7 @@ if run_clicked and image_bytes:
 
     if verdict.evidence_log:
         SEVERITY_ORDER = {"critical": 0, "moderate": 1, "minor": 2, "info": 3}
+        SEVERITY_ICON = {"critical": "🔴", "moderate": "🟠", "minor": "🟡", "info": "🔵"}
         sorted_evidence = sorted(
             verdict.evidence_log,
             key=lambda e: SEVERITY_ORDER.get(e.severity, 99),
@@ -333,9 +390,10 @@ if run_clicked and image_bytes:
         for entry in sorted_evidence:
             agent_label = entry.source_agent.replace("_", " ").title()
             sev = entry.severity
+            sev_icon = SEVERITY_ICON.get(sev, "⚪")
             st.markdown(
                 f'<div class="evidence-{sev}">'
-                f'<strong>[{agent_label}]</strong> <em>{sev.upper()}</em> — {entry.finding}'
+                f'{sev_icon} <strong>[{agent_label}]</strong> <em>{sev.upper()}</em> — {entry.finding}'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -413,8 +471,9 @@ if run_clicked and image_bytes:
 
     # ── Performance stats ──────────────────────────────────────────────────
     st.divider()
+    _mode_note = "Demo Mode (simulated)" if demo_mode else "Live Vertex AI"
     st.markdown(f"<small>⏱️ Total inspection time: **{result.duration_seconds:.1f}s** · "
-                f"Model: Gemini 2.5 Pro · Region: us-central1</small>",
+                f"Model: Gemini 2.5 Pro · Region: us-central1 · {_mode_note}</small>",
                 unsafe_allow_html=True)
 
 else:
@@ -443,7 +502,7 @@ else:
     st.markdown(
         """
         **Quick start:**
-        1. Set your GCP Project ID in the sidebar (or add it to `.env`)
+        1. Keep **🎭 Demo Mode** on for an instant offline run — _or_ set your GCP Project ID in the sidebar for live inference
         2. Upload a PCB photo (JPEG/PNG) **or** select a sample from the sidebar
         3. Click **▶️ Run QC Inspection**
         4. The 5-agent brigade analyses your board in seconds
@@ -451,3 +510,12 @@ else:
         > **Verdict codes:** ✅ PASS · 🔧 REWORK · ⏸️ HOLD · 👁️ HUMAN REVIEW
         """
     )
+
+# ── Global footer ──────────────────────────────────────────────────────────────
+st.divider()
+st.markdown(
+    '<div style="text-align:center;color:#90A4AE;font-size:0.85rem;padding:8px 0;">'
+    "Powered by Google ADK + Gemini 2.5 Pro · RomeoFlexVision"
+    "</div>",
+    unsafe_allow_html=True,
+)
