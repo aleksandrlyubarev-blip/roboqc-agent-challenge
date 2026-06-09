@@ -7,19 +7,20 @@ from __future__ import annotations
 import json
 import logging
 import os
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Generic, TypeVar
 
 import vertexai
 from pydantic import BaseModel
-from vertexai.generative_models import GenerationConfig, GenerativeModel, Image, Part
+from vertexai.generative_models import GenerationConfig, GenerativeModel, Part
 
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
-# Model configuration — us-central1 as required by the ТЗ
-_GEMINI_MODEL = "gemini-2.5-pro-preview-05-06"
+# Model configuration — us-central1 as required by the ТЗ.
+# The retired preview ID returns 404 on Vertex AI; use the current stable model.
+_GEMINI_MODEL = "gemini-2.5-pro"
 _REGION = "us-central1"
 
 _vertexai_initialized = False
@@ -30,7 +31,7 @@ def _ensure_vertexai() -> None:
     if not _vertexai_initialized:
         project = os.environ.get("GOOGLE_CLOUD_PROJECT")
         if not project:
-            raise EnvironmentError(
+            raise OSError(
                 "GOOGLE_CLOUD_PROJECT environment variable is not set. "
                 "Copy .env.example to .env and fill in your project ID."
             )
@@ -94,7 +95,7 @@ class NeuronVisionAgent(ABC, Generic[T]):
                     [image_part, prompt],
                     generation_config=GenerationConfig(
                         response_mime_type="application/json",
-                        response_schema=self.output_model,
+                        response_schema=self.output_model.model_json_schema(),
                         temperature=0.1,
                         max_output_tokens=2048,
                     ),

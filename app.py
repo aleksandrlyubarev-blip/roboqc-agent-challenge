@@ -21,6 +21,7 @@ from PIL import Image
 # ── Bootstrap ────────────────────────────────────────────────────────────────
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 try:
     from src.neuron_vision.telemetry import init_tracer
@@ -299,7 +300,7 @@ if run_clicked and image_bytes:
 
     # Mark triage as active immediately
     stage_placeholders["triage"].markdown(
-        f'<div class="stage-active">⏳ 🔍 Triage Agent</div><br><small>Stage 1: Board type & risk zones</small>',
+        '<div class="stage-active">⏳ 🔍 Triage Agent</div><br><small>Stage 1: Board type & risk zones</small>',
         unsafe_allow_html=True,
     )
 
@@ -313,7 +314,7 @@ if run_clicked and image_bytes:
                 result = asyncio.run(pipeline.run_async(image_bytes, on_stage=on_stage))
         except Exception as exc:
             st.error(f"❌ Pipeline error: {exc}")
-            st.exception(exc)
+            logger.exception("Pipeline failed")
             st.stop()
 
     elapsed = time.perf_counter() - t0
