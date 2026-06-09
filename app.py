@@ -195,7 +195,7 @@ with col_preview:
         st.markdown("### 🖼️ Preview")
         try:
             pil_img = Image.open(io.BytesIO(image_bytes))
-            st.image(pil_img, caption=image_source, use_container_width=True)
+            st.image(pil_img, caption=image_source, width="stretch")
             w, h = pil_img.size
             st.caption(f"{w}×{h} px · {len(image_bytes) / 1024:.0f} KB")
         except Exception as e:
@@ -211,7 +211,7 @@ with run_col:
         "▶️ Run QC Inspection",
         type="primary",
         disabled=run_disabled,
-        use_container_width=True,
+        width="stretch",
     )
     if image_bytes is None:
         st.caption("⬆️ Upload an image to enable inspection")
