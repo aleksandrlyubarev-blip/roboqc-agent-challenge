@@ -206,7 +206,8 @@ st.divider()
 
 run_col, spacer = st.columns([2, 5])
 with run_col:
-    run_disabled = image_bytes is None
+    live_mode_missing_project = not demo_mode and not os.environ.get("GOOGLE_CLOUD_PROJECT")
+    run_disabled = image_bytes is None or live_mode_missing_project
     run_clicked = st.button(
         "▶️ Run QC Inspection",
         type="primary",
@@ -217,11 +218,15 @@ with run_col:
         st.caption("⬆️ Upload an image to enable inspection")
     elif demo_mode:
         st.caption("🎭 Demo mode active — no GCP required")
-    elif not os.environ.get("GOOGLE_CLOUD_PROJECT"):
+    elif live_mode_missing_project:
         st.caption("⚙️ Set GCP Project ID in the sidebar")
 
 # ── Inspection execution ──────────────────────────────────────────────────────
 if run_clicked and image_bytes:
+    if not demo_mode and not os.environ.get("GOOGLE_CLOUD_PROJECT"):
+        st.error("❌ Set a GCP Project ID in the sidebar before running live inference.")
+        st.stop()
+
     # ── Demo Mode banner ───────────────────────────────────────────────────
     if demo_mode:
         st.warning(
