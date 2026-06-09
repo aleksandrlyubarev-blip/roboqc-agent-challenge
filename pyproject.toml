@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "RoboQC Agent: SMT first-article inspection assistant"
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
-license = { text = "Apache-2.0" }
+license = { text = "MIT" }
 authors = [{ name = "Aleksandr Lyubarev" }]
 dependencies = [
   "fastapi",
@@ -30,7 +30,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/roboqc_agent"]
+packages = ["src/roboqc_agent", "src/neuron_vision"]
 
 [tool.black]
 line-length = 100
@@ -47,7 +47,7 @@ select = ["E", "F", "I", "B", "UP"]
 python_version = "3.11"
 strict = true
 mypy_path = "src"
-packages = ["roboqc_agent"]
+packages = ["roboqc_agent", "neuron_vision"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

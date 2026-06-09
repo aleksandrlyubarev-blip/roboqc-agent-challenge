@@ -6,6 +6,7 @@ _System: RomeoFlexVision · Google for Startups AI Agents Challenge 2026_
 [![Cloud Run](https://img.shields.io/badge/Deploy-Cloud%20Run-4285F4?logo=google-cloud)](https://cloud.google.com/run)
 [![Gemini 2.5 Pro](https://img.shields.io/badge/Model-Gemini%202.5%20Pro-EA4335?logo=google)](https://cloud.google.com/vertex-ai)
 [![ADK](https://img.shields.io/badge/Google-Agent%20Development%20Kit-34A853?logo=google)](https://google.github.io/adk-docs/)
+[![Arize Phoenix](https://img.shields.io/badge/Observability-Arize%20Phoenix-6F42C1)](https://phoenix.arize.com/)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python)](https://python.org)
 
 ---
@@ -83,12 +84,60 @@ graph TD
 
 | Layer | Technology |
 |-------|-----------|
-| **Agent framework** | [Google Agent Development Kit (ADK)](https://google.github.io/adk-docs/) |
+| **Agent architecture** | Typed 5-agent runtime + [Google ADK](https://google.github.io/adk-docs/) graph scaffold |
 | **Vision + reasoning** | Vertex AI **Gemini 2.5 Pro** (us-central1) |
 | **Structured output** | Pydantic v2 — all agent outputs are strictly typed |
 | **UI** | Streamlit — live agent progress, colour-coded verdict badge, Evidence Log |
-| **Deployment** | Cloud Run — serverless, scales to zero |
+| **Observability** | Arize Phoenix + OpenTelemetry + `openinference-instrumentation-vertexai` |
+| **Deployment** | Cloud Run — 2 vCPU / 2Gi, min instances during judging |
 | **Deploy tooling** | `gcloud` + Cloud Build (`scripts/deploy_cloudrun.sh`) |
+
+---
+
+## Observability — Arize Phoenix
+
+Neuron Vision Display instruments Vertex AI Gemini calls through OpenInference and
+exports spans to Arize Phoenix / Arize Cloud-compatible OTLP endpoints.
+
+**SDK note:** the live pipeline uses:
+
+```python
+from vertexai.generative_models import GenerativeModel
+```
+
+So the correct instrumentation package is:
+
+```txt
+openinference-instrumentation-vertexai
+```
+
+not `openinference-instrumentation-google-genai`, which targets the separate
+`google-genai` SDK.
+
+Tracing is initialized in [src/neuron_vision/telemetry.py](src/neuron_vision/telemetry.py):
+
+```python
+from openinference.instrumentation.vertexai import VertexAIInstrumentor
+
+VertexAIInstrumentor().instrument()
+```
+
+The pipeline also creates a parent span around the full inspection run and
+agent-level spans for Triage, Solder, Component, Marking, and Chief. Stage 2
+uses explicit ContextVar propagation through `run_in_executor`, so Phoenix can
+show the three specialist agents as a parallel bracket under one inspection.
+
+Cloud Run configuration:
+
+```bash
+PHOENIX_COLLECTOR_ENDPOINT=https://YOUR-PHOENIX-OR-ARIZE-ENDPOINT/v1/traces
+DEMO_MODE=0
+GOOGLE_CLOUD_PROJECT=YOUR_PROJECT
+GOOGLE_CLOUD_REGION=us-central1
+```
+
+If `PHOENIX_COLLECTOR_ENDPOINT` is missing on Cloud Run, the app still serves
+traffic, but traces are not exported to an external Phoenix/Arize collector.
 
 ---
 
@@ -103,7 +152,7 @@ graph TD
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/your-org/roboqc-agent-challenge
+git clone https://github.com/aleksandrlyubarev-blip/roboqc-agent-challenge
 cd roboqc-agent-challenge
 pip install -r requirements.txt
 ```
@@ -167,9 +216,15 @@ gcloud run deploy neuron-vision-display \
   --allow-unauthenticated \
   --memory 2Gi \
   --cpu 2 \
+  --concurrency 4 \
+  --min-instances 1 \
+  --max-instances 10 \
   --timeout 300 \
-  --set-env-vars GOOGLE_CLOUD_PROJECT=YOUR_PROJECT,GOOGLE_CLOUD_REGION=us-central1
+  --set-env-vars GOOGLE_CLOUD_PROJECT=YOUR_PROJECT,GOOGLE_CLOUD_REGION=us-central1,DEMO_MODE=0,PHOENIX_COLLECTOR_ENDPOINT=https://YOUR-PHOENIX-ENDPOINT/v1/traces
 ```
+
+Keep `--min-instances 1` enabled through judging to avoid a cold start on the
+first visit. You can remove it after the judging window to return to scale-to-zero.
 
 > The `infra/cloudrun/` directory holds an alternative deploy scaffold
 > (`deploy.sh` + `cloudbuild.yaml` + `service.yaml`) for the authenticated
@@ -213,6 +268,7 @@ roboqc-agent-challenge/
 │   │   ├── __init__.py
 │   │   ├── schemas.py              # Pydantic v2 models
 │   │   ├── pipeline.py             # Orchestrator
+│   │   ├── telemetry.py            # Arize Phoenix / OpenInference tracing
 │   │   └── agents/
 │   │       ├── base.py             # NeuronVisionAgent base class
 │   │       ├── triage_agent.py

@@ -28,5 +28,5 @@ tenacity>=8.3.0
 # ── Observability / Arize Phoenix (partner track) ────────────────────────────
 arize-phoenix>=4.0.0
 opentelemetry-sdk>=1.24.0
-opentelemetry-exporter-otlp-proto-grpc>=1.24.0
-openinference-instrumentation-google-genai>=0.1.0
+opentelemetry-exporter-otlp-proto-http>=1.24.0
+openinference-instrumentation-vertexai>=0.1.0

@@ -6,6 +6,7 @@ Production-ready PCB visual QC dashboard.
 """
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
 import os
@@ -20,6 +21,13 @@ from PIL import Image
 # ── Bootstrap ────────────────────────────────────────────────────────────────
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
+
+try:
+    from src.neuron_vision.telemetry import init_tracer
+
+    init_tracer()
+except Exception as exc:
+    logging.getLogger(__name__).warning("Arize tracing disabled: %s", exc)
 
 # Demo mode — enabled by env var or when no GCP project is configured
 _DEMO_MODE_DEFAULT = os.environ.get("DEMO_MODE", "").lower() in ("1", "true", "yes") \
@@ -261,8 +269,6 @@ if run_clicked and image_bytes:
             )
 
     completed_stages: list[str] = []
-    current_stage_key: list[str] = []  # mutable container for closure
-
     progress_bar = st.progress(0, text="Initialising pipeline …")
     status_text = st.empty()
 
@@ -285,7 +291,11 @@ if run_clicked and image_bytes:
 
         pct = int(n_complete / len(STAGES) * 100)
         progress_bar.progress(pct, text=f"Completed: {', '.join(completed_stages)}")
-        status_text.markdown(f"✅ **{label}** completed")
+        completed_label = next(
+            (label for key, label, _desc in STAGES if key == stage_name),
+            stage_name,
+        )
+        status_text.markdown(f"✅ **{completed_label}** completed")
 
     # Mark triage as active immediately
     stage_placeholders["triage"].markdown(
@@ -297,7 +307,10 @@ if run_clicked and image_bytes:
 
     with st.spinner("Running 5-agent QC brigade …"):
         try:
-            result = pipeline.run(image_bytes, on_stage=on_stage)
+            if demo_mode:
+                result = pipeline.run(image_bytes, on_stage=on_stage)
+            else:
+                result = asyncio.run(pipeline.run_async(image_bytes, on_stage=on_stage))
         except Exception as exc:
             st.error(f"❌ Pipeline error: {exc}")
             st.exception(exc)

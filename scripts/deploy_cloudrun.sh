@@ -24,6 +24,8 @@ cd "${REPO_ROOT}"
 # ── Configuration ─────────────────────────────────────────────────────────────
 SERVICE="neuron-vision-display"
 REGION="${GOOGLE_CLOUD_REGION:-us-central1}"
+MIN_INSTANCES="${MIN_INSTANCES:-1}"
+CONCURRENCY="${CONCURRENCY:-4}"
 
 # ── 1. Load .env ──────────────────────────────────────────────────────────────
 if [[ ! -f .env ]]; then
@@ -50,6 +52,8 @@ IMAGE="gcr.io/${GOOGLE_CLOUD_PROJECT}/${SERVICE}"
 echo ">>> Project : ${GOOGLE_CLOUD_PROJECT}"
 echo ">>> Region  : ${REGION}"
 echo ">>> Image   : ${IMAGE}"
+echo ">>> Min inst: ${MIN_INSTANCES}"
+echo ">>> Concur. : ${CONCURRENCY}"
 echo
 
 # ── 2. Configure Docker auth for Container Registry ───────────────────────────
@@ -64,6 +68,14 @@ gcloud builds submit \
   .
 
 # ── 4. Deploy to Cloud Run ────────────────────────────────────────────────────
+ENV_VARS="GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT},GOOGLE_CLOUD_REGION=${REGION},DEMO_MODE=0"
+if [[ -n "${PHOENIX_COLLECTOR_ENDPOINT:-}" ]]; then
+  ENV_VARS="${ENV_VARS},PHOENIX_COLLECTOR_ENDPOINT=${PHOENIX_COLLECTOR_ENDPOINT}"
+fi
+if [[ -n "${PHOENIX_API_KEY:-}" ]]; then
+  ENV_VARS="${ENV_VARS},PHOENIX_API_KEY=${PHOENIX_API_KEY}"
+fi
+
 echo ">>> Deploying ${SERVICE} to Cloud Run ..."
 gcloud run deploy "${SERVICE}" \
   --project="${GOOGLE_CLOUD_PROJECT}" \
@@ -73,8 +85,11 @@ gcloud run deploy "${SERVICE}" \
   --allow-unauthenticated \
   --memory 2Gi \
   --cpu 2 \
+  --concurrency "${CONCURRENCY}" \
+  --min-instances "${MIN_INSTANCES}" \
+  --max-instances 10 \
   --timeout 300 \
-  --set-env-vars "GOOGLE_CLOUD_PROJECT=${GOOGLE_CLOUD_PROJECT},GOOGLE_CLOUD_REGION=${REGION}"
+  --set-env-vars "${ENV_VARS}"
 
 # ── 5. Print the service URL ──────────────────────────────────────────────────
 URL="$(gcloud run services describe "${SERVICE}" \
