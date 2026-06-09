@@ -6,6 +6,10 @@
 **Delivery:** read at a normal conversational pace; the timecodes below match
 the final cut of `neuron_vision_V5_fable.mp4` (8 segments, crossfades at the
 boundaries).
+**Synthesized track:** `make_voiceover.py` renders this script with Piper TTS
+(`en_US-ryan-high`) — the shipped mp4 already carries that narration. The
+text below is the human-readable master; the TTS copy in `make_voiceover.py`
+spells out numerals and abbreviations for clean pronunciation.
 
 ---
 

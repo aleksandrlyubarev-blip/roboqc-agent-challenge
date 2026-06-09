@@ -5,7 +5,10 @@ with crossfades. Output: 1920x1080 @ 30 fps, H.264, ~175 s, well under 8 MB.
 
 Usage:
     python video/make_frames.py
-    python video/make_video.py [output.mp4]
+    python video/make_video.py [output.mp4] [--audio voiceover.wav]
+
+Without --audio a silent track is muxed in; with --audio (see
+make_voiceover.py) the narration is encoded at 48 kbps mono AAC.
 """
 
 from __future__ import annotations
@@ -36,7 +39,13 @@ SEGMENTS: list[tuple[str, float]] = [
 
 
 def main() -> None:
-    out = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE / "out" / "neuron_vision_V5_fable.mp4"
+    args = sys.argv[1:]
+    audio: Path | None = None
+    if "--audio" in args:
+        i = args.index("--audio")
+        audio = Path(args[i + 1])
+        del args[i:i + 2]
+    out = Path(args[0]) if args else HERE / "out" / "neuron_vision_V5_fable.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
 
     cmd: list[str] = ["ffmpeg", "-y"]
@@ -71,8 +80,12 @@ def main() -> None:
     total = sum(d for _, d in SEGMENTS) - XFADE * (len(SEGMENTS) - 1)
     print(f"target duration: {total:.1f} s")
 
+    audio_input = (
+        ["-i", str(audio)] if audio
+        else ["-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=44100"]
+    )
     common = cmd + [
-        "-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=44100",
+        *audio_input,
         "-filter_complex", ";".join(filters),
         "-map", "[vout]",
         "-t", f"{total:.3f}",
@@ -87,7 +100,7 @@ def main() -> None:
     subprocess.run(
         common + [
             "-map", f"{len(SEGMENTS)}:a",
-            "-c:a", "aac", "-b:a", "16k", "-shortest",
+            "-c:a", "aac", "-b:a", "48k" if audio else "16k", "-ac", "1", "-shortest",
             "-movflags", "+faststart",
             "-pass", "2", str(out),
         ],
