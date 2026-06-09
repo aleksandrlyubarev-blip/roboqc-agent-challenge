@@ -15,6 +15,7 @@ import os
 from typing import Any
 
 from opentelemetry import trace
+from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
@@ -43,6 +44,7 @@ def init_tracer(
     if _initialized and _tracer is not None:
         return _tracer
 
+    project_name = os.getenv("PHOENIX_PROJECT_NAME", project_name)
     endpoint = (
         phoenix_endpoint
         or os.getenv("PHOENIX_COLLECTOR_ENDPOINT")
@@ -50,7 +52,9 @@ def init_tracer(
     )
     running_on_cloud_run = bool(os.getenv("K_SERVICE"))
 
-    provider = TracerProvider()
+    provider = TracerProvider(
+        resource=Resource.create({"openinference.project.name": project_name})
+    )
 
     if running_on_cloud_run and endpoint.startswith("http://localhost"):
         logger.warning(
@@ -63,7 +67,14 @@ def init_tracer(
                 OTLPSpanExporter,
             )
 
-            provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint)))
+            provider.add_span_processor(
+                BatchSpanProcessor(
+                    OTLPSpanExporter(
+                        endpoint=endpoint,
+                        headers=_build_otlp_headers(project_name),
+                    )
+                )
+            )
         except ImportError as exc:
             logger.warning("OTLP HTTP exporter unavailable; tracing export disabled: %s", exc)
 
@@ -113,3 +124,13 @@ def _instrument_vertexai(instrumentor: Any, provider: TracerProvider) -> None:
         instrumentor.instrument(tracer_provider=provider)
     except TypeError:
         instrumentor.instrument()
+
+
+def _build_otlp_headers(project_name: str) -> dict[str, str]:
+    """Build Phoenix-compatible OTLP HTTP headers without leaking secrets to logs."""
+    headers = {"x-project-name": project_name}
+    api_key = os.getenv("PHOENIX_API_KEY")
+    if api_key:
+        auth_value = api_key if api_key.lower().startswith("bearer ") else f"Bearer {api_key}"
+        headers["authorization"] = auth_value
+    return headers

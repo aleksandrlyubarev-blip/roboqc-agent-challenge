@@ -80,6 +80,25 @@ graph TD
 
 ---
 
+## Production Runtime Boundary
+
+The deployed Cloud Run application is [app.py](app.py), which imports the
+`src/neuron_vision` package and calls Vertex AI through:
+
+```python
+from vertexai.generative_models import GenerativeModel
+```
+
+That production path is the 5-agent Neuron Vision Display pipeline shown above.
+It is the only runtime path used by the live Streamlit UI and by the Arize
+OpenInference instrumentation.
+
+The repository also keeps the earlier `src/roboqc_agent` Google ADK scaffold for
+tests and future API work. That legacy scaffold contains a `google-genai`
+provider, but it is not executed by the deployed Cloud Run Streamlit service.
+
+---
+
 ## Technology Stack
 
 | Layer | Technology |
@@ -131,10 +150,17 @@ Cloud Run configuration:
 
 ```bash
 PHOENIX_COLLECTOR_ENDPOINT=https://YOUR-PHOENIX-OR-ARIZE-ENDPOINT/v1/traces
+PHOENIX_API_KEY=YOUR_PHOENIX_API_KEY
+PHOENIX_PROJECT_NAME=neuron-vision-display
 DEMO_MODE=0
 GOOGLE_CLOUD_PROJECT=YOUR_PROJECT
 GOOGLE_CLOUD_REGION=us-central1
 ```
+
+For Phoenix/Arize endpoints with authentication enabled, the app reads
+`PHOENIX_API_KEY` and sends it as the OTLP HTTP `authorization: Bearer ...`
+header. It also sets `x-project-name` so traces route to the
+`neuron-vision-display` project in Phoenix/Arize.
 
 If `PHOENIX_COLLECTOR_ENDPOINT` is missing on Cloud Run, the app still serves
 traffic, but traces are not exported to an external Phoenix/Arize collector.
@@ -223,6 +249,14 @@ gcloud run deploy neuron-vision-display \
   --set-env-vars GOOGLE_CLOUD_PROJECT=YOUR_PROJECT,GOOGLE_CLOUD_REGION=us-central1,DEMO_MODE=0,PHOENIX_COLLECTOR_ENDPOINT=https://YOUR-PHOENIX-ENDPOINT/v1/traces
 ```
 
+### Attach Arize/Phoenix to an existing Cloud Run service
+
+```bash
+gcloud run services update neuron-vision-display \
+  --region us-central1 \
+  --update-env-vars PHOENIX_COLLECTOR_ENDPOINT=https://YOUR-PHOENIX-ENDPOINT/v1/traces,PHOENIX_API_KEY=YOUR_PHOENIX_API_KEY,PHOENIX_PROJECT_NAME=neuron-vision-display
+```
+
 Keep `--min-instances 1` enabled through judging to avoid a cold start on the
 first visit. You can remove it after the judging window to return to scale-to-zero.
 
@@ -276,7 +310,7 @@ roboqc-agent-challenge/
 │   │       ├── component_inspector.py
 │   │       ├── marking_inspector.py
 │   │       └── chief_inspector.py
-│   └── [existing ADK pipeline]     # Original 4-agent tile pipeline
+│   └── roboqc_agent/               # Legacy ADK/API scaffold, not live Streamlit runtime
 ├── scripts/
 │   ├── download_datasets.sh        # DeepPCB · VisA · PKU-Market-PCB
 │   └── deploy_cloudrun.sh          # One-command Cloud Run deploy

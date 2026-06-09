@@ -4,6 +4,8 @@
 # ── Google Cloud / Vertex AI ─────────────────────────────────────────────────
 google-cloud-aiplatform>=1.60.0
 google-adk>=0.1.0
+# Kept for the legacy roboqc_agent scaffold and ADK-compatible experiments.
+# The deployed Neuron Vision Display path uses google-cloud-aiplatform/vertexai.
 google-genai>=0.5.0
 
 # ── AI / ML ──────────────────────────────────────────────────────────────────
