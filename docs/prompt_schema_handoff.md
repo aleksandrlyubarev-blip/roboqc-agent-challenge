@@ -1,7 +1,12 @@
 # Prompt / schema handoff
 
 **Date:** 2026-05-19  
-**GitHub issue:** https://github.com/aleksandrlyubarev-blip/roboqc-agent-challenge/issues/21
+**GitHub issue:** https://github.com/aleksandrlyubarev-blip/roboqc-agent-challenge/issues/21  
+**Status:** RESOLVED 2026-06-09 — Claude revised all four prompt Output Format
+sections to match the frozen schemas (option 1 below). Vision Inspector was
+aligned first (commit `4248a4b`); FMEA Risk, Supervisor, and Evidence Report
+followed. No schema semantics were changed. See `decision_log.md`
+(2026-06-09 entry).
 
 Claude-owned prompt files were copied from `~/Desktop/roboqc_prompts/` without
 editing prompt strings. Before committing, Codex checked the Output Format

@@ -242,3 +242,27 @@ in about 60 seconds.
   executable LLM flow.
 - **Reversible:** yes.
 - **Revisit after:** issue #21 is resolved.
+
+## 2026-06-09 — Issue #21 closed by revising prompts to the frozen schemas
+
+- **Decided by:** Claude
+- **Area:** prompts
+- **Decision:** the FMEA Risk, Supervisor, and Evidence Report prompt Output
+  Format sections were rewritten to emit `FMEAEntry[]`, `Action`, and
+  `QCReport` exactly as frozen in `schemas.py` (option 1 from
+  `docs/prompt_schema_handoff.md`); no schema v1.1 was proposed.
+- **Context:** issue #21 recorded that prompts copied from Desktop described
+  RPN-style objects (`FMEARiskAssessment`, `SupervisorDecision`,
+  `InspectionReport`) that the ADK factories' `output_schema` would reject at
+  runtime. Vision Inspector was already aligned in commit 4248a4b.
+- **Alternatives considered:** propose schema v1.1 carrying RPN
+  (S × O × D) fields through the contract; keep prompts unchanged and adapt at
+  a translation layer.
+- **Why this won:** the schemas were frozen 2026-05-16 for the Google
+  submission and `fmea_taxonomy.md` already defines the three-level severity
+  model as the source of truth; the RPN material in the donor prompts was
+  submission-incompatible narrative, not a contract.
+- **Impact on other agent:** Codex can now wire runtime state keys in
+  `graph.py` and treat the four-agent skeleton as an executable LLM flow.
+- **Reversible:** yes.
+- **Revisit after:** first live end-to-end run against Vertex Gemini.
