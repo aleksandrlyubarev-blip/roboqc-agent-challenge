@@ -8,6 +8,7 @@ import json
 import logging
 import os
 from abc import ABC
+from copy import deepcopy
 from typing import Generic, TypeVar
 
 import vertexai
@@ -24,6 +25,30 @@ _GEMINI_MODEL = "gemini-2.5-pro"
 _REGION = "us-central1"
 
 _vertexai_initialized = False
+_VERTEX_SCHEMA_KEYS = {
+    "anyOf",
+    "default",
+    "description",
+    "enum",
+    "example",
+    "format",
+    "items",
+    "maxItems",
+    "maxLength",
+    "maxProperties",
+    "maximum",
+    "minItems",
+    "minLength",
+    "minProperties",
+    "minimum",
+    "nullable",
+    "pattern",
+    "properties",
+    "propertyOrdering",
+    "required",
+    "title",
+    "type",
+}
 
 
 def _ensure_vertexai() -> None:
@@ -37,6 +62,41 @@ def _ensure_vertexai() -> None:
             )
         vertexai.init(project=project, location=_REGION)
         _vertexai_initialized = True
+
+
+def _vertex_response_schema(model: type[BaseModel]) -> dict:
+    """Convert Pydantic JSON Schema into the subset accepted by Vertex AI."""
+    schema = model.model_json_schema()
+    defs = schema.get("$defs", {})
+
+    def resolve(node: object) -> object:
+        if isinstance(node, list):
+            return [resolve(item) for item in node]
+        if not isinstance(node, dict):
+            return node
+
+        if "$ref" in node:
+            ref = node["$ref"]
+            if ref.startswith("#/$defs/"):
+                ref_name = ref.rsplit("/", 1)[-1]
+                resolved = deepcopy(defs[ref_name])
+                resolved.update({key: value for key, value in node.items() if key != "$ref"})
+                return resolve(resolved)
+
+        cleaned: dict[str, object] = {}
+        for key, value in node.items():
+            if key == "properties":
+                cleaned[key] = {
+                    prop_name: resolve(prop_schema)
+                    for prop_name, prop_schema in value.items()
+                }
+            elif key in _VERTEX_SCHEMA_KEYS:
+                cleaned[key] = resolve(value)
+        if "properties" in cleaned and "propertyOrdering" not in cleaned:
+            cleaned["propertyOrdering"] = list(cleaned["properties"])
+        return cleaned
+
+    return resolve(schema)
 
 
 class NeuronVisionAgent(ABC, Generic[T]):
@@ -95,7 +155,7 @@ class NeuronVisionAgent(ABC, Generic[T]):
                     [image_part, prompt],
                     generation_config=GenerationConfig(
                         response_mime_type="application/json",
-                        response_schema=self.output_model.model_json_schema(),
+                        response_schema=_vertex_response_schema(self.output_model),
                         temperature=0.1,
                         max_output_tokens=2048,
                     ),
