@@ -9,8 +9,10 @@ RUN useradd --create-home --uid 1001 appuser
 
 WORKDIR /app
 
-COPY infra/fable5/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# requirements.lock pins the full transitive resolution (production
+# checklist item); requirements.txt stays the human-edited source.
+COPY infra/fable5/requirements.lock .
+RUN pip install --no-cache-dir -r requirements.lock
 
 COPY src/neuron_vision/fable5 src/neuron_vision/fable5
 COPY src/neuron_vision/__init__.py src/neuron_vision/__init__.py

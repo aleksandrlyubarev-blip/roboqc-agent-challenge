@@ -1,0 +1,30 @@
+{
+  "defects": [
+    {
+      "defect_type": "mura",
+      "location": "lower-left quadrant",
+      "severity": "moderate",
+      "confidence": 0.91,
+      "details": "Cloudy luminance non-uniformity visible at 20% grey, ~14mm diameter"
+    },
+    {
+      "defect_type": "line_defect",
+      "location": "row 312, full width",
+      "severity": "critical",
+      "confidence": 0.97,
+      "details": "Single bright horizontal line, persistent across test patterns"
+    }
+  ],
+  "context": {
+    "line_id": "A",
+    "product": "NV-Display 15.6\" FHD",
+    "stage": "module",
+    "recent_changes": [
+      "new ACF lot installed 2026-06-08",
+      "bonding head #2 maintenance on 2026-06-07"
+    ],
+    "environment": "cleanroom humidity 38%, within spec",
+    "defect_history": "line defects up 3x since Monday on line A only"
+  },
+  "question": "Why did line defects spike on line A and what should we check first?"
+}

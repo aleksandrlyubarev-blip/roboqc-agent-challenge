@@ -7,6 +7,7 @@ OpenInference / Phoenix dependencies are not installed. No live Phoenix or
 Vertex AI connection is required — the OTLP exporter is lazy/batched, so no
 network call happens during initialization.
 """
+
 from __future__ import annotations
 
 import sys

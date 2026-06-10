@@ -4,6 +4,7 @@ System: RomeoFlexVision | Google ADK + Vertex AI Gemini 2.5 Pro
 
 Production-ready PCB visual QC dashboard.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -12,7 +13,6 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Optional
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -31,8 +31,11 @@ except Exception as exc:
     logging.getLogger(__name__).warning("Arize tracing disabled: %s", exc)
 
 # Demo mode — enabled by env var or when no GCP project is configured
-_DEMO_MODE_DEFAULT = os.environ.get("DEMO_MODE", "").lower() in ("1", "true", "yes") \
-    or not os.environ.get("GOOGLE_CLOUD_PROJECT", "")
+_DEMO_MODE_DEFAULT = os.environ.get("DEMO_MODE", "").lower() in (
+    "1",
+    "true",
+    "yes",
+) or not os.environ.get("GOOGLE_CLOUD_PROJECT", "")
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -104,7 +107,9 @@ with st.sidebar:
         width=140,
     )
     st.markdown("## 🔬 Neuron Vision Display")
-    st.markdown("**System:** RomeoFlexVision  \n**Model:** Gemini 2.5 Pro  \n**Region:** us-central1")
+    st.markdown(
+        "**System:** RomeoFlexVision  \n**Model:** Gemini 2.5 Pro  \n**Region:** us-central1"
+    )
     st.divider()
 
     st.markdown("### ⚙️ Configuration")
@@ -140,7 +145,11 @@ with st.sidebar:
 
     # Example images from examples/ folder
     examples_dir = Path("examples/pcb_samples")
-    example_files = sorted(examples_dir.glob("*.jpg")) + sorted(examples_dir.glob("*.png")) if examples_dir.exists() else []
+    example_files = (
+        sorted(examples_dir.glob("*.jpg")) + sorted(examples_dir.glob("*.png"))
+        if examples_dir.exists()
+        else []
+    )
 
     if example_files:
         st.markdown("### 📂 Sample Images")
@@ -178,7 +187,7 @@ with col_upload:
         help="High-resolution top-down photo works best. Minimum 800×600 px recommended.",
     )
 
-    image_bytes: Optional[bytes] = None
+    image_bytes: bytes | None = None
     image_source = None
 
     if uploaded is not None:
@@ -239,6 +248,7 @@ if run_clicked and image_bytes:
     if demo_mode:
         try:
             from src.neuron_vision.demo_mode import DemoPipeline
+
             _forced = None if demo_scenario == "auto (from image hash)" else demo_scenario
             pipeline = DemoPipeline(scenario=_forced, speed=0.6)
         except ImportError as e:
@@ -247,9 +257,13 @@ if run_clicked and image_bytes:
     else:
         try:
             from src.neuron_vision.pipeline import NeuronVisionPipeline
+
             pipeline = NeuronVisionPipeline()
         except ImportError as e:
-            st.error(f"❌ Import error: {e}. Ensure you're running from the repo root with all dependencies installed.")
+            st.error(
+                f"❌ Import error: {e}. "
+                "Ensure you're running from the repo root with all dependencies installed."
+            )
             st.stop()
 
     st.divider()
@@ -257,11 +271,11 @@ if run_clicked and image_bytes:
 
     # ── Stage progress display ─────────────────────────────────────────────
     STAGES = [
-        ("triage",     "🔍 Triage Agent",            "Stage 1: Board type & risk zones"),
-        ("solder",     "🔧 Solder Inspector",         "Stage 2a: Joint quality"),
-        ("components", "🧩 Component Inspector",      "Stage 2b: Placement & presence"),
-        ("markings",   "🏷️ Marking Inspector",        "Stage 2c: Silkscreen & QR"),
-        ("chief",      "🎯 Chief Inspector",          "Stage 3: Verdict & evidence"),
+        ("triage", "🔍 Triage Agent", "Stage 1: Board type & risk zones"),
+        ("solder", "🔧 Solder Inspector", "Stage 2a: Joint quality"),
+        ("components", "🧩 Component Inspector", "Stage 2b: Placement & presence"),
+        ("markings", "🏷️ Marking Inspector", "Stage 2c: Silkscreen & QR"),
+        ("chief", "🎯 Chief Inspector", "Stage 3: Verdict & evidence"),
     ]
 
     stage_cols = st.columns(len(STAGES))
@@ -283,7 +297,7 @@ if run_clicked and image_bytes:
         completed_stages.append(stage_name)
         n_complete = len(completed_stages)
 
-        for i, (key, label, desc) in enumerate(STAGES):
+        for key, label, desc in STAGES:
             if key in completed_stages:
                 stage_placeholders[key].markdown(
                     f'<div class="stage-complete">✅ {label}</div><br><small>{desc}</small>',
@@ -305,7 +319,8 @@ if run_clicked and image_bytes:
 
     # Mark triage as active immediately
     stage_placeholders["triage"].markdown(
-        '<div class="stage-active">⏳ 🔍 Triage Agent</div><br><small>Stage 1: Board type & risk zones</small>',
+        '<div class="stage-active">⏳ 🔍 Triage Agent</div><br>'
+        "<small>Stage 1: Board type & risk zones</small>",
         unsafe_allow_html=True,
     )
 
@@ -334,15 +349,15 @@ if run_clicked and image_bytes:
     status = verdict.status
 
     VERDICT_ICONS = {
-        "pass":         "✅",
-        "rework":       "🔧",
-        "hold":         "⏸️",
+        "pass": "✅",
+        "rework": "🔧",
+        "hold": "⏸️",
         "human_review": "👁️",
     }
     VERDICT_LABELS = {
-        "pass":         "PASS — Clear to ship",
-        "rework":       "REWORK — Defects found",
-        "hold":         "HOLD — Manual review needed",
+        "pass": "PASS — Clear to ship",
+        "rework": "REWORK — Defects found",
+        "hold": "HOLD — Manual review needed",
         "human_review": "HUMAN REVIEW — Escalate now",
     }
 
@@ -353,17 +368,17 @@ if run_clicked and image_bytes:
     st.markdown(
         f'<div style="text-align:center;padding:16px 0">'
         f'<div class="verdict-{status}" style="font-size:2rem;padding:18px 48px">'
-        f'{icon} {label}</div>'
+        f"{icon} {label}</div>"
         f'<p style="margin-top:12px;font-size:1.1rem;color:#37474F">{verdict.summary}</p>'
-        f'</div>',
+        f"</div>",
         unsafe_allow_html=True,
     )
 
     # ── Metrics row ────────────────────────────────────────────────────────
-    total_defects = len(result.solder.defects) + len(result.components.issues) + len(result.markings.issues)
-    critical_count = sum(
-        1 for e in verdict.evidence_log if e.severity == "critical"
+    total_defects = (
+        len(result.solder.defects) + len(result.components.issues) + len(result.markings.issues)
     )
+    critical_count = sum(1 for e in verdict.evidence_log if e.severity == "critical")
     conf_pct = int(verdict.confidence * 100)
 
     mc1, mc2, mc3, mc4 = st.columns(4)
@@ -377,13 +392,14 @@ if run_clicked and image_bytes:
         color = "#B71C1C" if critical_count > 0 else "#2E7D32"
         st.markdown(
             f'<div class="metric-box"><div class="metric-value" style="color:{color}">'
-            f'{critical_count}</div>'
+            f"{critical_count}</div>"
             f'<div class="metric-label">Critical</div></div>',
             unsafe_allow_html=True,
         )
     with mc3:
         st.markdown(
-            f'<div class="metric-box"><div class="metric-value">{result.duration_seconds:.1f}s</div>'
+            f'<div class="metric-box">'
+            f'<div class="metric-value">{result.duration_seconds:.1f}s</div>'
             f'<div class="metric-label">Inspection time</div></div>',
             unsafe_allow_html=True,
         )
@@ -417,8 +433,9 @@ if run_clicked and image_bytes:
             icon_sev = SEVERITY_ICONS.get(sev, "⚪")
             st.markdown(
                 f'<div class="evidence-{sev}">'
-                f'{icon_sev} <strong>[{agent_label}]</strong> <em>{sev.upper()}</em> — {entry.finding}'
-                f'</div>',
+                f"{icon_sev} <strong>[{agent_label}]</strong> "
+                f"<em>{sev.upper()}</em> — {entry.finding}"
+                f"</div>",
                 unsafe_allow_html=True,
             )
     else:
@@ -440,7 +457,9 @@ if run_clicked and image_bytes:
         if t.notes:
             st.markdown(f"**Notes:** {t.notes}")
 
-    with st.expander(f"🔧 Solder Inspector — {len(result.solder.defects)} defect(s) found", expanded=False):
+    with st.expander(
+        f"🔧 Solder Inspector — {len(result.solder.defects)} defect(s) found", expanded=False
+    ):
         s = result.solder
         st.markdown(f"**Overall solder quality:** `{s.overall_solder_quality}`")
         st.markdown(f"**Joints inspected (estimate):** {s.inspected_joints_estimate}")
@@ -449,13 +468,17 @@ if run_clicked and image_bytes:
         if s.defects:
             st.markdown("**Defects:**")
             for d in s.defects:
-                sev_emoji = {"minor": "🟡", "moderate": "🟠", "critical": "🔴"}.get(d.severity, "⚪")
+                sev_emoji = {"minor": "🟡", "moderate": "🟠", "critical": "🔴"}.get(
+                    d.severity, "⚪"
+                )
                 st.markdown(
                     f"  {sev_emoji} `{d.defect_type}` at **{d.location}** "
                     f"— severity: {d.severity} ({d.confidence:.0%} confidence)"
                 )
 
-    with st.expander(f"🧩 Component Inspector — {len(result.components.issues)} issue(s) found", expanded=False):
+    with st.expander(
+        f"🧩 Component Inspector — {len(result.components.issues)} issue(s) found", expanded=False
+    ):
         c = result.components
         st.markdown(f"**Overall placement quality:** `{c.overall_placement_quality}`")
         st.markdown(f"**Confidence:** {c.confidence:.0%}")
@@ -469,13 +492,17 @@ if run_clicked and image_bytes:
         if c.issues:
             st.markdown("**All issues:**")
             for issue in c.issues:
-                sev_emoji = {"minor": "🟡", "moderate": "🟠", "critical": "🔴"}.get(issue.severity, "⚪")
+                sev_emoji = {"minor": "🟡", "moderate": "🟠", "critical": "🔴"}.get(
+                    issue.severity, "⚪"
+                )
                 st.markdown(
                     f"  {sev_emoji} **{issue.component_ref}** — `{issue.issue_type}` "
                     f"({issue.severity})" + (f": {issue.details}" if issue.details else "")
                 )
 
-    with st.expander(f"🏷️ Marking Inspector — {len(result.markings.issues)} issue(s) found", expanded=False):
+    with st.expander(
+        f"🏷️ Marking Inspector — {len(result.markings.issues)} issue(s) found", expanded=False
+    ):
         m = result.markings
         st.markdown(f"**Overall marking quality:** `{m.overall_marking_quality}`")
         st.markdown(f"**QR/Barcode valid:** {'✅ Yes' if m.qr_valid else '❌ No'}")
@@ -488,7 +515,9 @@ if run_clicked and image_bytes:
         if m.issues:
             st.markdown("**All issues:**")
             for issue in m.issues:
-                sev_emoji = {"minor": "🟡", "moderate": "🟠", "critical": "🔴"}.get(issue.severity, "⚪")
+                sev_emoji = {"minor": "🟡", "moderate": "🟠", "critical": "🔴"}.get(
+                    issue.severity, "⚪"
+                )
                 st.markdown(
                     f"  {sev_emoji} **{issue.area}** — `{issue.issue_type}` ({issue.severity})"
                 )
@@ -513,20 +542,19 @@ else:
         ("🏷️", "Marking Inspector", "Validates silkscreen, QR codes, polarity marks"),
         ("🎯", "Chief Inspector", "Synthesises all findings into a binding QC verdict"),
     ]
-    for col, (icon, name, desc) in zip(cols, agent_cards):
+    for col, (icon, name, desc) in zip(cols, agent_cards, strict=False):
         with col:
             st.markdown(
                 f'<div class="metric-box" style="min-height:140px;">'
                 f'<div style="font-size:2rem">{icon}</div>'
                 f'<div style="font-weight:700;margin:8px 0 4px">{name}</div>'
                 f'<div style="font-size:0.8rem;color:#607D8B">{desc}</div>'
-                f'</div>',
+                f"</div>",
                 unsafe_allow_html=True,
             )
 
     st.divider()
-    st.markdown(
-        """
+    st.markdown("""
         **Quick start:**
         1. Set your GCP Project ID in the sidebar (or add it to `.env`)
         2. Upload a PCB photo (JPEG/PNG) **or** select a sample from the sidebar
@@ -534,5 +562,4 @@ else:
         4. The 5-agent brigade analyses your board in seconds
 
         > **Verdict codes:** ✅ PASS · 🔧 REWORK · ⏸️ HOLD · 👁️ HUMAN REVIEW
-        """
-    )
+        """)

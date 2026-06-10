@@ -1,9 +1,10 @@
 """Neuron Vision Display — 5-agent QC brigade."""
-from .triage_agent import TriageAgent
-from .solder_inspector import SolderInspector
+
+from .chief_inspector import ChiefInspector
 from .component_inspector import ComponentInspector
 from .marking_inspector import MarkingInspector
-from .chief_inspector import ChiefInspector
+from .solder_inspector import SolderInspector
+from .triage_agent import TriageAgent
 
 __all__ = [
     "TriageAgent",

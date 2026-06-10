@@ -8,6 +8,7 @@ Therefore the correct OpenInference instrumentor is
 ``openinference-instrumentation-vertexai``. The google-genai instrumentor does
 not patch these calls.
 """
+
 from __future__ import annotations
 
 import logging
@@ -46,9 +47,7 @@ def init_tracer(
 
     project_name = os.getenv("PHOENIX_PROJECT_NAME", project_name)
     endpoint = (
-        phoenix_endpoint
-        or os.getenv("PHOENIX_COLLECTOR_ENDPOINT")
-        or _LOCAL_PHOENIX_ENDPOINT
+        phoenix_endpoint or os.getenv("PHOENIX_COLLECTOR_ENDPOINT") or _LOCAL_PHOENIX_ENDPOINT
     )
     running_on_cloud_run = bool(os.getenv("K_SERVICE"))
 

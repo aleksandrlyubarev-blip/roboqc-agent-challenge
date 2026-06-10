@@ -46,7 +46,7 @@ def bg(glow_xy: tuple[int, int], glow_rgb: tuple[int, int, int]) -> Image.Image:
     px = img.load()
     for y in range(H):
         t = y / (H - 1)
-        row = tuple(int(a + (b - a) * t) for a, b in zip(BG_TOP, BG_BOT))
+        row = tuple(int(a + (b - a) * t) for a, b in zip(BG_TOP, BG_BOT, strict=True))
         for x in range(W):
             px[x, y] = row
 
@@ -71,8 +71,16 @@ def bg(glow_xy: tuple[int, int], glow_rgb: tuple[int, int, int]) -> Image.Image:
     return img
 
 
-def glow_text(img: Image.Image, xy: tuple[int, int], text: str,
-              f: ImageFont.FreeTypeFont, fill, glow_rgb, *, anchor="la") -> None:
+def glow_text(
+    img: Image.Image,
+    xy: tuple[int, int],
+    text: str,
+    f: ImageFont.FreeTypeFont,
+    fill,
+    glow_rgb,
+    *,
+    anchor="la",
+) -> None:
     layer = Image.new("RGB", (W, H), (0, 0, 0))
     ld = ImageDraw.Draw(layer)
     ld.text(xy, text, font=f, fill=tuple(c // 2 for c in glow_rgb), anchor=anchor)
@@ -101,11 +109,14 @@ def card(d: ImageDraw.ImageDraw, box, *, radius=28, fill=CARD, edge=CARD_EDGE) -
 def arrow(d: ImageDraw.ImageDraw, x0, y0, x1, y1, color=DIM, w=6) -> None:
     d.line([x0, y0, x1, y1], fill=color, width=w)
     import math
+
     ang = math.atan2(y1 - y0, x1 - x0)
     for s in (-1, 1):
-        d.line([x1, y1,
-                x1 - 26 * math.cos(ang + s * 0.45),
-                y1 - 26 * math.sin(ang + s * 0.45)], fill=color, width=w)
+        d.line(
+            [x1, y1, x1 - 26 * math.cos(ang + s * 0.45), y1 - 26 * math.sin(ang + s * 0.45)],
+            fill=color,
+            width=w,
+        )
 
 
 # ────────────────────────────────────────────────────────────────────────────
@@ -115,15 +126,28 @@ def frame_01_cost_stat() -> Image.Image:
     kicker(d, (140, 170), "PCB quality control today", RED)
     glow_text(img, (W // 2, 530), "$500K – $1M", font(290), INK, RED, anchor="mm")
     d = ImageDraw.Draw(img)
-    d.text((W // 2, 760), "the price of ONE automated optical inspection machine",
-           font=font(56, bold=False), fill=DIM, anchor="mm")
+    d.text(
+        (W // 2, 760),
+        "the price of ONE automated optical inspection machine",
+        font=font(56, bold=False),
+        fill=DIM,
+        anchor="mm",
+    )
     d.line([W // 2 - 420, 850, W // 2 + 420, 850], fill=CARD_EDGE, width=3)
-    d.text((W // 2, 960),
-           "Most small electronics shops never buy one.",
-           font=font(58), fill=INK, anchor="mm")
-    d.text((W // 2, 1050),
-           "They inspect by eye — and defects ship.",
-           font=font(58), fill=AMBER, anchor="mm")
+    d.text(
+        (W // 2, 960),
+        "Most small electronics shops never buy one.",
+        font=font(58),
+        fill=INK,
+        anchor="mm",
+    )
+    d.text(
+        (W // 2, 1050),
+        "They inspect by eye — and defects ship.",
+        font=font(58),
+        fill=AMBER,
+        anchor="mm",
+    )
     footer(d, "01 / 08")
     return img
 
@@ -162,10 +186,20 @@ def frame_02_pipeline() -> Image.Image:
 
     brace = (820, 360, 1330, 1040)
     d.rounded_rectangle(brace, radius=34, outline=PURPLE, width=4)
-    d.text(((brace[0] + brace[2]) // 2, 1085), "asyncio.gather() — stage 2 runs in parallel",
-           font=font(40, mono=True), fill=PURPLE, anchor="ma")
-    d.text((W // 2, 1165), "Vertex AI · Gemini 2.5 Pro · us-central1",
-           font=font(34, mono=True), fill=DIM, anchor="ma")
+    d.text(
+        ((brace[0] + brace[2]) // 2, 1085),
+        "asyncio.gather() — stage 2 runs in parallel",
+        font=font(40, mono=True),
+        fill=PURPLE,
+        anchor="ma",
+    )
+    d.text(
+        (W // 2, 1165),
+        "Vertex AI · Gemini 2.5 Pro · us-central1",
+        font=font(34, mono=True),
+        fill=DIM,
+        anchor="ma",
+    )
     footer(d, "02 / 08")
     return img
 
@@ -180,7 +214,7 @@ def frame_03_demo() -> Image.Image:
     card(d, (140, 430, 1150, 1130), radius=36)
     d.rounded_rectangle([190, 490, 620, 880], radius=20, fill=(8, 40, 24), outline=GREEN, width=3)
     # PCB doodle
-    for i, y in enumerate(range(540, 860, 44)):
+    for y in range(540, 860, 44):
         d.line([220, y, 590, y], fill=(28, 110, 64), width=6)
     for x in range(260, 600, 80):
         d.rectangle([x, 600, x + 36, 650], fill=(20, 70, 45), outline=(40, 150, 90))
@@ -194,8 +228,13 @@ def frame_03_demo() -> Image.Image:
 
     d.text((1290, 560), "Try to break it, judges:", font=font(52), fill=INK)
     card(d, (1290, 650, 2260, 760), fill=(10, 30, 36), edge=CYAN)
-    d.text((1320, 705), "neuron-vision-display-z3mwyxcila-uc.a.run.app",
-           font=font(33, mono=True), fill=CYAN, anchor="lm")
+    d.text(
+        (1320, 705),
+        "neuron-vision-display-z3mwyxcila-uc.a.run.app",
+        font=font(33, mono=True),
+        fill=CYAN,
+        anchor="lm",
+    )
     d.text((1290, 820), "Upload a board photo.", font=font(44, bold=False), fill=DIM)
     d.text((1290, 890), "Get a located, named defect.", font=font(44, bold=False), fill=DIM)
     footer(d, "03 / 08")
@@ -224,10 +263,12 @@ def frame_04_speed_compare() -> Image.Image:
         for i in range(3):
             sx = x0 + wpx - 60 - i * 46
             if sx > x0:
-                d.line([sx, y + 18 + i * 24, sx - 30, y + 18 + i * 24],
-                       fill=(255, 255, 255), width=5)
-        d.text((x0 + wpx + 36, y + 42), f"{sec} s", font=font(58, mono=True),
-               fill=color, anchor="lm")
+                d.line(
+                    [sx, y + 18 + i * 24, sx - 30, y + 18 + i * 24], fill=(255, 255, 255), width=5
+                )
+        d.text(
+            (x0 + wpx + 36, y + 42), f"{sec} s", font=font(58, mono=True), fill=color, anchor="lm"
+        )
 
     bar(560, 14.1, (120, 130, 155), "sequential")
     bar(740, 4.7, CYAN, "parallel")
@@ -235,8 +276,14 @@ def frame_04_speed_compare() -> Image.Image:
 
     glow_text(img, (2020, 1080), "3×", font(230), INK, CYAN, anchor="mm")
     d = ImageDraw.Draw(img)
-    d.text((1760, 1080), "the bottleneck was the\narchitecture, not the model",
-           font=font(44, bold=False), fill=DIM, anchor="rm", align="right")
+    d.text(
+        (1760, 1080),
+        "the bottleneck was the\narchitecture, not the model",
+        font=font(44, bold=False),
+        fill=DIM,
+        anchor="rm",
+        align="right",
+    )
     footer(d, "04 / 08")
     return img
 
@@ -261,8 +308,7 @@ def frame_05_impact() -> Image.Image:
     for i, (a, b, c) in enumerate(rows):
         y = table[1] + i * rh
         if i == 0:
-            d.rounded_rectangle([table[0], y, table[2], y + rh],
-                                radius=36, fill=(24, 33, 58))
+            d.rounded_rectangle([table[0], y, table[2], y + rh], radius=36, fill=(24, 33, 58))
             d.rectangle([table[0], y + rh // 2, table[2], y + rh], fill=(24, 33, 58))
         elif i % 2 == 0:
             d.rectangle([table[0] + 4, y, table[2] - 4, y + rh], fill=(20, 28, 50))
@@ -271,13 +317,23 @@ def frame_05_impact() -> Image.Image:
         bcol = INK if i == 0 else (200, 140, 150)
         ccol = INK if i == 0 else GREEN
         d.text((col2, cy), b, font=font(46, bold=(i == 0)), fill=bcol, anchor="lm")
-        d.text((col3, cy), ("" if i == 0 else "✓ ") + c,
-               font=font(46, bold=(i == 0)), fill=ccol, anchor="lm")
+        d.text(
+            (col3, cy),
+            ("" if i == 0 else "✓ ") + c,
+            font=font(46, bold=(i == 0)),
+            fill=ccol,
+            anchor="lm",
+        )
         if i:
             d.line([table[0] + 30, y, table[2] - 30, y], fill=CARD_EDGE, width=2)
 
-    d.text((W // 2, 1210), "QC that scales down to a ten-person shop — not just up to a gigafactory.",
-           font=font(46), fill=AMBER, anchor="mm")
+    d.text(
+        (W // 2, 1210),
+        "QC that scales down to a ten-person shop — not just up to a gigafactory.",
+        font=font(46),
+        fill=AMBER,
+        anchor="mm",
+    )
     footer(d, "05 / 08")
     return img
 
@@ -288,9 +344,11 @@ def frame_06_observability() -> Image.Image:
     kicker(d, (140, 150), "Arize Phoenix · OpenInference", PURPLE)
     d.text((140, 220), "Every verdict is traceable.", font=font(96), fill=INK)
 
-    stats = [("142", "traces captured", CYAN),
-             ("98.6%", "pipeline success", GREEN),
-             ("6.2 s", "P95 latency", AMBER)]
+    stats = [
+        ("142", "traces captured", CYAN),
+        ("98.6%", "pipeline success", GREEN),
+        ("6.2 s", "P95 latency", AMBER),
+    ]
     bw = 640
     for i, (big, small, color) in enumerate(stats):
         x = 150 + i * (bw + 70)
@@ -299,12 +357,20 @@ def frame_06_observability() -> Image.Image:
         d = ImageDraw.Draw(img)
         d.text((x + bw // 2, 820), small, font=font(46, bold=False), fill=DIM, anchor="mm")
 
-    d.text((W // 2, 1050),
-           "When an agent disagrees with a human inspector,",
-           font=font(46, bold=False), fill=DIM, anchor="mm")
-    d.text((W // 2, 1120),
-           "we replay exactly what it saw — and what it said.",
-           font=font(46), fill=INK, anchor="mm")
+    d.text(
+        (W // 2, 1050),
+        "When an agent disagrees with a human inspector,",
+        font=font(46, bold=False),
+        fill=DIM,
+        anchor="mm",
+    )
+    d.text(
+        (W // 2, 1120),
+        "we replay exactly what it saw — and what it said.",
+        font=font(46),
+        fill=INK,
+        anchor="mm",
+    )
     footer(d, "06 / 08")
     return img
 
@@ -321,31 +387,88 @@ def frame_07_tech_code() -> Image.Image:
     for i, c in enumerate([(255, 95, 86), (255, 189, 46), (39, 201, 63)]):
         d.ellipse([win[0] + 36 + i * 52, 274, win[0] + 66 + i * 52, 304], fill=c)
     d.rounded_rectangle([win[0] + 220, 262, win[0] + 880, 316], radius=10, fill=(24, 30, 46))
-    d.text((win[0] + 250, 289), "src/neuron_vision/pipeline.py", font=font(32, mono=True),
-           fill=(170, 180, 200), anchor="lm")
+    d.text(
+        (win[0] + 250, 289),
+        "src/neuron_vision/pipeline.py",
+        font=font(32, mono=True),
+        fill=(170, 180, 200),
+        anchor="lm",
+    )
 
-    KW, FN, STR, COM, VAR, PUN = (199, 146, 234), (130, 170, 255), (195, 232, 141), \
-        (99, 109, 131), (236, 239, 244), (137, 221, 255)
+    KW, FN, STR, COM, VAR, PUN = (
+        (199, 146, 234),
+        (130, 170, 255),
+        (195, 232, 141),
+        (99, 109, 131),
+        (236, 239, 244),
+        (137, 221, 255),
+    )
     code: list[list[tuple[str, tuple]]] = [
         [("# Stage 2 — three specialists, one photo, in parallel", COM)],
-        [("solder_fut", VAR), ("     = ", PUN), ("run_in_executor", FN), ("(", PUN),
-         ("loop", VAR), (", ", PUN), ("self", KW), ("._solder.run", VAR), (")", PUN)],
-        [("components_fut", VAR), (" = ", PUN), ("run_in_executor", FN), ("(", PUN),
-         ("loop", VAR), (", ", PUN), ("self", KW), ("._components.run", VAR), (")", PUN)],
-        [("markings_fut", VAR), ("   = ", PUN), ("run_in_executor", FN), ("(", PUN),
-         ("loop", VAR), (", ", PUN), ("self", KW), ("._markings.run", VAR), (")", PUN)],
+        [
+            ("solder_fut", VAR),
+            ("     = ", PUN),
+            ("run_in_executor", FN),
+            ("(", PUN),
+            ("loop", VAR),
+            (", ", PUN),
+            ("self", KW),
+            ("._solder.run", VAR),
+            (")", PUN),
+        ],
+        [
+            ("components_fut", VAR),
+            (" = ", PUN),
+            ("run_in_executor", FN),
+            ("(", PUN),
+            ("loop", VAR),
+            (", ", PUN),
+            ("self", KW),
+            ("._components.run", VAR),
+            (")", PUN),
+        ],
+        [
+            ("markings_fut", VAR),
+            ("   = ", PUN),
+            ("run_in_executor", FN),
+            ("(", PUN),
+            ("loop", VAR),
+            (", ", PUN),
+            ("self", KW),
+            ("._markings.run", VAR),
+            (")", PUN),
+        ],
         [],
-        [("reports", VAR), (" = ", PUN), ("await", KW), (" asyncio.", VAR), ("gather", FN), ("(", PUN)],
+        [
+            ("reports", VAR),
+            (" = ", PUN),
+            ("await", KW),
+            (" asyncio.", VAR),
+            ("gather", FN),
+            ("(", PUN),
+        ],
         [("    solder_fut, components_fut, markings_fut,", VAR)],
-        [("    return_exceptions", VAR), ("=", PUN), ("True", KW), (",", PUN),
-         ("          # 14.1 s -> 4.7 s", COM)],
+        [
+            ("    return_exceptions", VAR),
+            ("=", PUN),
+            ("True", KW),
+            (",", PUN),
+            ("          # 14.1 s -> 4.7 s", COM),
+        ],
         [(")", PUN)],
         [],
         [("# Every agent: structured output, no string parsing", COM)],
         [("config", VAR), (" = ", PUN), ("GenerationConfig", FN), ("(", PUN)],
         [("    response_mime_type", VAR), ("=", PUN), ('"application/json"', STR), (",", PUN)],
-        [("    response_schema", VAR), ("=", PUN), ("vertex_schema", FN), ("(", PUN),
-         ("SolderReport", FN), ("),", PUN), ("  # Pydantic v2", COM)],
+        [
+            ("    response_schema", VAR),
+            ("=", PUN),
+            ("vertex_schema", FN),
+            ("(", PUN),
+            ("SolderReport", FN),
+            ("),", PUN),
+            ("  # Pydantic v2", COM),
+        ],
         [(")", PUN)],
     ]
     f = font(40, mono=True, bold=False)
@@ -358,8 +481,13 @@ def frame_07_tech_code() -> Image.Image:
             x += d.textlength(text, font=f)
         y += 52
 
-    d.text((W // 2, 1208), "Vertex AI SDK · Pydantic v2 · ~200-line orchestrator",
-           font=font(38, mono=True), fill=DIM, anchor="ma")
+    d.text(
+        (W // 2, 1208),
+        "Vertex AI SDK · Pydantic v2 · ~200-line orchestrator",
+        font=font(38, mono=True),
+        fill=DIM,
+        anchor="ma",
+    )
     footer(d, "07 / 08")
     return img
 
@@ -369,20 +497,45 @@ def frame_08_cta() -> Image.Image:
     d = ImageDraw.Draw(img)
     glow_text(img, (W // 2, 420), "NEURON VISION", font(170), INK, CYAN, anchor="mm")
     d = ImageDraw.Draw(img)
-    d.text((W // 2, 580), "Factory-grade inspection. No factory budget.",
-           font=font(58), fill=INK, anchor="mm")
+    d.text(
+        (W // 2, 580),
+        "Factory-grade inspection. No factory budget.",
+        font=font(58),
+        fill=INK,
+        anchor="mm",
+    )
 
     card(d, (430, 700, 1970, 810), fill=(10, 30, 36), edge=CYAN)
-    d.text((W // 2, 755), "neuron-vision-display-z3mwyxcila-uc.a.run.app",
-           font=font(46, mono=True), fill=CYAN, anchor="mm")
+    d.text(
+        (W // 2, 755),
+        "neuron-vision-display-z3mwyxcila-uc.a.run.app",
+        font=font(46, mono=True),
+        fill=CYAN,
+        anchor="mm",
+    )
     card(d, (430, 850, 1970, 960), fill=(13, 20, 36), edge=CARD_EDGE)
-    d.text((W // 2, 905), "github.com/aleksandrlyubarev-blip/roboqc-agent-challenge",
-           font=font(44, mono=True), fill=INK, anchor="mm")
+    d.text(
+        (W // 2, 905),
+        "github.com/aleksandrlyubarev-blip/roboqc-agent-challenge",
+        font=font(44, mono=True),
+        fill=INK,
+        anchor="mm",
+    )
 
-    d.text((W // 2, 1060), "Vertex AI Gemini 2.5 Pro  ·  Cloud Run  ·  Arize Phoenix",
-           font=font(40, mono=True), fill=DIM, anchor="mm")
-    d.text((W // 2, 1140), "Google Cloud Rapid Agent Hackathon 2026 — Arize partner track",
-           font=font(36, bold=False), fill=DIM, anchor="mm")
+    d.text(
+        (W // 2, 1060),
+        "Vertex AI Gemini 2.5 Pro  ·  Cloud Run  ·  Arize Phoenix",
+        font=font(40, mono=True),
+        fill=DIM,
+        anchor="mm",
+    )
+    d.text(
+        (W // 2, 1140),
+        "Google Cloud Rapid Agent Hackathon 2026 — Arize partner track",
+        font=font(36, bold=False),
+        fill=DIM,
+        anchor="mm",
+    )
     footer(d, "08 / 08")
     return img
 

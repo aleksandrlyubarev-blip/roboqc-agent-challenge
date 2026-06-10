@@ -4,12 +4,16 @@ Component Inspector — Stage 2b of the Neuron Vision Display QC brigade.
 Specialist agent for component placement quality:
   • Missing, wrong-value, misoriented, shifted, tombstoned, or damaged components
 """
+
 from __future__ import annotations
+
+from typing import Any
 
 from ..schemas import ComponentReport, TriageResult
 from .base import NeuronVisionAgent
 
-_INSTRUCTION = """You are the Component Inspector in the Neuron Vision Display system (RomeoFlexVision),
+_INSTRUCTION = """You are the Component Inspector in the Neuron Vision Display system
+(RomeoFlexVision),
 a professional multi-agent QC platform for SMT PCB manufacturing.
 
 Your SOLE focus is component placement and presence. Do not comment on solder quality
@@ -49,7 +53,7 @@ class ComponentInspector(NeuronVisionAgent[ComponentReport]):
     instruction = _INSTRUCTION
     output_model = ComponentReport
 
-    def _build_prompt(self, context: dict) -> str:
+    def _build_prompt(self, context: dict[str, Any]) -> str:
         triage: TriageResult | None = context.get("triage")
         if triage:
             zones = ", ".join(triage.risk_zones) if triage.risk_zones else "none flagged"
