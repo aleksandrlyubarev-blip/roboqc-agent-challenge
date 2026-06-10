@@ -52,8 +52,17 @@ mypy_path = "src"
 packages = ["roboqc_agent", "neuron_vision"]
 
 [[tool.mypy.overrides]]
-# GAPIC-generated client: typed at runtime but ships incomplete stubs.
-module = ["google.cloud.secretmanager"]
+# Optional runtime deps (requirements.txt, not pyproject) and GAPIC clients
+# without complete stubs — absent in the CI venv, present on Cloud Run.
+module = [
+  "google.cloud.secretmanager",
+  "vertexai",
+  "vertexai.*",
+  "phoenix",
+  "phoenix.*",
+  "openinference.*",
+  "opentelemetry.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

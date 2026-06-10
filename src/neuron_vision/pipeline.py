@@ -19,6 +19,7 @@ Flow:
                              ▼
                         QCVerdict              ← pass / rework / hold / human_review
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -26,6 +27,7 @@ import logging
 import time
 from collections.abc import Callable
 from contextvars import copy_context
+from typing import TypeVar
 
 from .agents import (
     ChiefInspector,
@@ -36,6 +38,8 @@ from .agents import (
 )
 from .schemas import ComponentReport, MarkingReport, PipelineResult, SolderReport
 from .telemetry import get_tracer
+
+_T = TypeVar("_T")
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +106,7 @@ class NeuronVisionPipeline:
 
             # ── Stage 2: Parallel specialist inspection ──────────────────
             context = {"triage": triage}
-            solder_fut = self._run_in_executor(
-                loop, lambda: self._solder.run(image_bytes, context)
-            )
+            solder_fut = self._run_in_executor(loop, lambda: self._solder.run(image_bytes, context))
             components_fut = self._run_in_executor(
                 loop, lambda: self._components.run(image_bytes, context)
             )
@@ -151,8 +153,8 @@ class NeuronVisionPipeline:
     async def _run_in_executor(
         self,
         loop: asyncio.AbstractEventLoop,
-        func: Callable[[], object],
-    ) -> object:
+        func: Callable[[], _T],
+    ) -> _T:
         context = copy_context()
         return await loop.run_in_executor(None, context.run, func)
 

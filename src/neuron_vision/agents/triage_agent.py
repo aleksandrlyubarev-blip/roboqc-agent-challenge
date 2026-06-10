@@ -6,7 +6,10 @@ Performs rapid first-pass analysis of the PCB image to:
   • Flag high-risk zones for focused downstream inspection
   • Set overall inspection priority
 """
+
 from __future__ import annotations
+
+from typing import Any
 
 from ..schemas import TriageResult
 from .base import NeuronVisionAgent
@@ -43,7 +46,7 @@ class TriageAgent(NeuronVisionAgent[TriageResult]):
     instruction = _INSTRUCTION
     output_model = TriageResult
 
-    def _build_prompt(self, context: dict) -> str:
+    def _build_prompt(self, context: dict[str, Any]) -> str:
         return (
             "Perform triage on this PCB image. "
             "Identify the board type, list specific high-risk inspection zones, "

@@ -5,12 +5,16 @@ Specialist agent for solder joint quality:
   • Cold joints, solder bridges, insufficient/excess solder
   • Tombstoning, lifted pads, voids
 """
+
 from __future__ import annotations
+
+from typing import Any
 
 from ..schemas import SolderReport, TriageResult
 from .base import NeuronVisionAgent
 
-_INSTRUCTION = """You are the Solder Inspector in the Neuron Vision Display system (RomeoFlexVision),
+_INSTRUCTION = """You are the Solder Inspector in the Neuron Vision Display system
+(RomeoFlexVision),
 a professional multi-agent QC platform for SMT PCB manufacturing.
 
 Your SOLE focus is solder joint quality. Do not comment on component placement,
@@ -51,7 +55,7 @@ class SolderInspector(NeuronVisionAgent[SolderReport]):
     instruction = _INSTRUCTION
     output_model = SolderReport
 
-    def _build_prompt(self, context: dict) -> str:
+    def _build_prompt(self, context: dict[str, Any]) -> str:
         triage: TriageResult | None = context.get("triage")
         if triage:
             zones = ", ".join(triage.risk_zones) if triage.risk_zones else "none flagged"
