@@ -11,6 +11,7 @@ Activate via:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import time
 from collections.abc import Callable
@@ -452,7 +453,7 @@ _STAGE_DELAYS = {
 
 def _pick_scenario(image_bytes: bytes) -> str:
     """Deterministic scenario selection based on image content hash."""
-    digest = hashlib.md5(image_bytes[:4096]).hexdigest()
+    digest = hashlib.sha256(image_bytes[:4096]).hexdigest()
     index = int(digest[:2], 16) % len(_SCENARIO_KEYS)
     return _SCENARIO_KEYS[index]
 
@@ -509,6 +510,24 @@ class DemoPipeline:
 
         result = builder()
         return result
+
+    async def run_async(
+        self,
+        image_bytes: bytes,
+        on_stage: Callable[[str], None] | None = None,
+    ) -> PipelineResult:
+        """Async twin of :meth:`run` — does not block the event loop."""
+        scenario_key = self._scenario or _pick_scenario(image_bytes)
+        builder = _SCENARIOS.get(scenario_key, _scenario_rework)
+
+        for stage in self.STAGE_ORDER:
+            delay = _STAGE_DELAYS.get(stage, 1.5) * self._speed
+            if delay > 0:
+                await asyncio.sleep(delay)
+            if on_stage:
+                on_stage(stage)
+
+        return builder()
 
     @classmethod
     def available_scenarios(cls) -> list[str]:

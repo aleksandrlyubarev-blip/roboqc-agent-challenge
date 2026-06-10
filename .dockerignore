@@ -18,6 +18,17 @@ __pycache__/
 # Sample / downloaded data (not needed at runtime)
 examples/pcb_samples/
 
+# CI, infra-as-code, docs and media — not needed inside the image.
+# NB: infra/fable5/ must stay in the context — its Dockerfile COPYs the lock
+# file from there when building from the repo root.
+.github/
+infra/monitoring/
+infra/cloudrun/
+bench/
+tests/
+docs/
+video/
+
 # Node and virtualenvs
 node_modules
 .venv

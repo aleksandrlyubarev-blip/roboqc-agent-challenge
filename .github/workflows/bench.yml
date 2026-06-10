@@ -19,5 +19,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-      - name: Benchmark placeholder
-        run: python bench/bench_smt_inspection.py --smoke
+      - name: Benchmark (smoke)
+        run: python bench/bench_smt_inspection.py --smoke | tee bench-results.txt
+      - name: Upload results artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results
+          path: bench-results.txt
+          retention-days: 90

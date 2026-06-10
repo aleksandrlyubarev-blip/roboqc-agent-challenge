@@ -57,12 +57,12 @@ class NeuronVisionPipeline:
     each stage completes — useful for driving progress indicators in the UI.
     """
 
-    def __init__(self) -> None:
-        self._triage = TriageAgent()
-        self._solder = SolderInspector()
-        self._components = ComponentInspector()
-        self._markings = MarkingInspector()
-        self._chief = ChiefInspector()
+    def __init__(self, project_id: str | None = None) -> None:
+        self._triage = TriageAgent(project_id)
+        self._solder = SolderInspector(project_id)
+        self._components = ComponentInspector(project_id)
+        self._markings = MarkingInspector(project_id)
+        self._chief = ChiefInspector(project_id)
 
     def run(
         self,

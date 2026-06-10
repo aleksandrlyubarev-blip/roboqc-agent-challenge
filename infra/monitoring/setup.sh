@@ -35,6 +35,7 @@ upsert_metric() {
 upsert_metric roboqc_llm_latency_ms "${HERE}/llm-latency-metric.yaml"
 upsert_metric roboqc_llm_error_count "${HERE}/llm-error-metric.yaml"
 upsert_metric roboqc_http_5xx_count "${HERE}/http-5xx-metric.yaml"
+upsert_metric roboqc_fable5_fallback_count "${HERE}/fable5-fallback-metric.yaml"
 
 CHANNEL_NAME="$(gcloud monitoring channels list \
   --filter="type=email AND labels.email_address=${ALERT_EMAIL}" \

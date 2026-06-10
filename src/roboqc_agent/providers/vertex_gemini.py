@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import mimetypes
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
+from roboqc_agent.config import default_location, default_model
 from roboqc_agent.telemetry import (
     LLMOperation,
     TelemetrySink,
@@ -21,6 +23,8 @@ from roboqc_agent.telemetry import (
 
 if TYPE_CHECKING:
     from google.genai import types as genai_types
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -39,15 +43,15 @@ class VertexGeminiProvider:
         self,
         *,
         project: str,
-        location: str = "us-central1",
-        model: str = "gemini-2.5-pro",
+        location: str | None = None,
+        model: str | None = None,
         client: Any | None = None,
         telemetry_sink: TelemetrySink = log_llm_event,
     ) -> None:
         self.project = project
-        self.location = location
-        self.model = model
-        self.client = client or self._build_default_client(project=project, location=location)
+        self.location = location or default_location()
+        self.model = model or default_model()
+        self.client = client or self._build_default_client(project=project, location=self.location)
         self.telemetry_sink = telemetry_sink
 
     def generate_text(
@@ -119,8 +123,8 @@ class VertexGeminiProvider:
     def _emit_telemetry(self, event: Any) -> None:
         try:
             self.telemetry_sink(event)
-        except Exception:  # pragma: no cover - telemetry must not break inference
-            pass
+        except Exception:  # telemetry must not break inference
+            logger.debug("Telemetry sink failed", exc_info=True)
 
     @staticmethod
     def _build_default_client(*, project: str, location: str) -> Any:

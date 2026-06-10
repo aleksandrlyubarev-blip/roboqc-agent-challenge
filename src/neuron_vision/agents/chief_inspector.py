@@ -16,8 +16,6 @@ from __future__ import annotations
 
 import json
 
-from vertexai.generative_models import GenerationConfig, GenerativeModel
-
 from ..schemas import (
     ComponentReport,
     MarkingReport,
@@ -26,7 +24,7 @@ from ..schemas import (
     TriageResult,
 )
 from ..telemetry import get_tracer
-from .base import _GEMINI_MODEL, _ensure_vertexai
+from .base import _GEMINI_MODEL, GenerationConfig, GenerativeModel, _ensure_vertexai
 
 _INSTRUCTION = """You are the Chief Inspector — the final decision-making agent in the
 Neuron Vision Display system (RomeoFlexVision), a professional multi-agent QC platform
@@ -71,8 +69,8 @@ class ChiefInspector:
 
     name = "chief_inspector"
 
-    def __init__(self) -> None:
-        _ensure_vertexai()
+    def __init__(self, project_id: str | None = None) -> None:
+        _ensure_vertexai(project_id)
         self._model = GenerativeModel(
             _GEMINI_MODEL,
             system_instruction=_INSTRUCTION,
