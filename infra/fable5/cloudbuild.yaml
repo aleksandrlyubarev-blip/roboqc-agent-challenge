@@ -13,6 +13,7 @@ substitutions:
   _REGION: us-central1
   _SERVICE: fable5-reasoning
   _REPO: neuron-vision
+  _SECRET_ID: anthropic-api-key
   _IMAGE: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}
 
 steps:
@@ -45,7 +46,7 @@ steps:
       - --service-account=fable5-runner@${PROJECT_ID}.iam.gserviceaccount.com
       # Secret Manager-backed env var: the key never appears in the service
       # config, image or build logs.
-      - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest
+      - --set-secrets=ANTHROPIC_API_KEY=${_SECRET_ID}:latest
       - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID}
       # Reasoning calls can take up to ~120 s; give the request a margin.
       - --timeout=180

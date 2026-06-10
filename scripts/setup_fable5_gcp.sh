@@ -104,7 +104,7 @@ fi
 echo ">>> Building and deploying via Cloud Build ..."
 gcloud builds submit \
   --config infra/fable5/cloudbuild.yaml \
-  --substitutions "_REGION=${REGION}" \
+  --substitutions "_REGION=${REGION},_SECRET_ID=${SECRET_ID}" \
   --project "${PROJECT}"
 
 URL=$(gcloud run services describe fable5-reasoning \
