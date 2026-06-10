@@ -11,8 +11,10 @@ requires-python = ">=3.11,<3.12"
 license = { text = "MIT" }
 authors = [{ name = "Aleksandr Lyubarev" }]
 dependencies = [
+  "anthropic>=0.49.0",
   "fastapi",
   "google-adk",
+  "google-cloud-secret-manager>=2.20.0",
   "google-genai",
   "pydantic>=2",
   "streamlit>=1.35.0",
@@ -48,6 +50,11 @@ python_version = "3.11"
 strict = true
 mypy_path = "src"
 packages = ["roboqc_agent", "neuron_vision"]
+
+[[tool.mypy.overrides]]
+# GAPIC-generated client: typed at runtime but ships incomplete stubs.
+module = ["google.cloud.secretmanager"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
