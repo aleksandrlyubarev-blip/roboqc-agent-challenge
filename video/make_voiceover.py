@@ -14,7 +14,6 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from pathlib import Path
@@ -89,9 +88,10 @@ def sh(*cmd: str) -> None:
 
 def duration(path: Path) -> float:
     out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "csv=p=0", str(path)],
-        check=True, capture_output=True, text=True,
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(path)],
+        check=True,
+        capture_output=True,
+        text=True,
     )
     return float(out.stdout.strip())
 
@@ -116,8 +116,10 @@ def segment_starts() -> list[float]:
 
 def srt_time(t: float) -> str:
     ms = int(round(t * 1000))
-    return f"{ms // 3600000:02d}:{ms % 3600000 // 60000:02d}:" \
-           f"{ms % 60000 // 1000:02d},{ms % 1000:03d}"
+    return (
+        f"{ms // 3600000:02d}:{ms % 3600000 // 60000:02d}:"
+        f"{ms % 60000 // 1000:02d},{ms % 1000:03d}"
+    )
 
 
 def write_srt(cues: list[tuple[float, float, str]], path: Path) -> None:
@@ -160,7 +162,10 @@ def main() -> None:
         fit = OUT / f"vo_{i + 1:02d}.wav"
         subprocess.run(
             ["piper", "-m", str(model), "-f", str(raw)],
-            input=text, text=True, check=True, capture_output=True,
+            input=text,
+            text=True,
+            check=True,
+            capture_output=True,
         )
         window = SEGMENTS[i][1] - XFADE - LEAD_IN - 0.3
         d = duration(raw)
@@ -170,13 +175,25 @@ def main() -> None:
                 f"segment {i + 1}: narration {d:.1f}s won't fit {window:.1f}s "
                 f"even at {MAX_TEMPO}x — trim the text"
             )
-        sh("ffmpeg", "-y", "-i", str(raw), "-af",
-           f"atempo={tempo:.4f},loudnorm=I=-17:TP=-1.5:LRA=9",
-           "-ar", "44100", "-ac", "1", str(fit))
+        sh(
+            "ffmpeg",
+            "-y",
+            "-i",
+            str(raw),
+            "-af",
+            f"atempo={tempo:.4f},loudnorm=I=-17:TP=-1.5:LRA=9",
+            "-ar",
+            "44100",
+            "-ac",
+            "1",
+            str(fit),
+        )
         fitted.append(fit)
         spoken = duration(fit)
-        print(f"segment {i + 1}: {d:5.1f}s -> {spoken:5.1f}s "
-              f"(window {window:.1f}s, tempo x{tempo:.2f})")
+        print(
+            f"segment {i + 1}: {d:5.1f}s -> {spoken:5.1f}s "
+            f"(window {window:.1f}s, tempo x{tempo:.2f})"
+        )
         cues += captions_for(text, starts[i] + LEAD_IN, spoken)
 
     # mix all segments onto one silent 175 s canvas
@@ -190,9 +207,10 @@ def main() -> None:
     amix = "".join(f"[a{i}]" for i in range(len(fitted)))
     cmd += [
         "-filter_complex",
-        f"{delays}{amix}amix=inputs={len(fitted)}:normalize=0,"
-        f"apad,atrim=0:{total:.3f}[out]",
-        "-map", "[out]", str(OUT / "voiceover.wav"),
+        f"{delays}{amix}amix=inputs={len(fitted)}:normalize=0," f"apad,atrim=0:{total:.3f}[out]",
+        "-map",
+        "[out]",
+        str(OUT / "voiceover.wav"),
     ]
     subprocess.run(cmd, check=True, capture_output=True)
     write_srt(cues, OUT / "captions.srt")

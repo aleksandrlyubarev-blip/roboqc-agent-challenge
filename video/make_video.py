@@ -44,7 +44,7 @@ def main() -> None:
     if "--audio" in args:
         i = args.index("--audio")
         audio = Path(args[i + 1])
-        del args[i:i + 2]
+        del args[i : i + 2]
     out = Path(args[0]) if args else HERE / "out" / "neuron_vision_V5_fable.mp4"
     out.parent.mkdir(parents=True, exist_ok=True)
 
@@ -72,8 +72,7 @@ def main() -> None:
         offset += SEGMENTS[i - 1][1] - XFADE
         nxt = f"x{i}" if i < len(SEGMENTS) - 1 else "vout"
         filters.append(
-            f"[{last}][v{i}]xfade=transition=fade:duration={XFADE}"
-            f":offset={offset:.3f}[{nxt}]"
+            f"[{last}][v{i}]xfade=transition=fade:duration={XFADE}" f":offset={offset:.3f}[{nxt}]"
         )
         last = nxt
 
@@ -81,28 +80,51 @@ def main() -> None:
     print(f"target duration: {total:.1f} s")
 
     audio_input = (
-        ["-i", str(audio)] if audio
+        ["-i", str(audio)]
+        if audio
         else ["-f", "lavfi", "-i", "anullsrc=channel_layout=mono:sample_rate=44100"]
     )
     common = cmd + [
         *audio_input,
-        "-filter_complex", ";".join(filters),
-        "-map", "[vout]",
-        "-t", f"{total:.3f}",
-        "-c:v", "libx264", "-preset", "slow", "-b:v", VBITRATE,
-        "-maxrate", "380k", "-bufsize", "760k",
-        "-pix_fmt", "yuv420p",
-        "-passlogfile", str(out.parent / "ffpass"),
+        "-filter_complex",
+        ";".join(filters),
+        "-map",
+        "[vout]",
+        "-t",
+        f"{total:.3f}",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "slow",
+        "-b:v",
+        VBITRATE,
+        "-maxrate",
+        "380k",
+        "-bufsize",
+        "760k",
+        "-pix_fmt",
+        "yuv420p",
+        "-passlogfile",
+        str(out.parent / "ffpass"),
     ]
+    subprocess.run(common + ["-an", "-pass", "1", "-f", "null", "/dev/null"], check=True)
     subprocess.run(
-        common + ["-an", "-pass", "1", "-f", "null", "/dev/null"], check=True
-    )
-    subprocess.run(
-        common + [
-            "-map", f"{len(SEGMENTS)}:a",
-            "-c:a", "aac", "-b:a", "48k" if audio else "16k", "-ac", "1", "-shortest",
-            "-movflags", "+faststart",
-            "-pass", "2", str(out),
+        common
+        + [
+            "-map",
+            f"{len(SEGMENTS)}:a",
+            "-c:a",
+            "aac",
+            "-b:a",
+            "48k" if audio else "16k",
+            "-ac",
+            "1",
+            "-shortest",
+            "-movflags",
+            "+faststart",
+            "-pass",
+            "2",
+            str(out),
         ],
         check=True,
     )
