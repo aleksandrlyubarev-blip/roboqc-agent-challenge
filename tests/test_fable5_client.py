@@ -193,3 +193,52 @@ async def test_repeat_request_is_served_from_cache() -> None:
     assert first.meta.cached is False
     assert second.meta.cached is True
     assert second.result == first.result
+
+
+class _FlakyMessages:
+    """Primary model raises a transport error; fallback model succeeds."""
+
+    def __init__(self, fail_models: set[str]) -> None:
+        self.fail_models = fail_models
+        self.calls: list[str] = []
+
+    async def create(self, **kwargs: Any) -> _Response:
+        import anthropic
+        import httpx
+
+        model = kwargs["model"]
+        self.calls.append(model)
+        if model in self.fail_models:
+            raise anthropic.APIConnectionError(request=httpx.Request("POST", "https://test"))
+        return _Response(stop_reason="end_turn")
+
+
+class _FlakyAnthropicClient:
+    def __init__(self, fail_models: set[str]) -> None:
+        self.messages = _FlakyMessages(fail_models)
+
+    async def close(self) -> None:  # pragma: no cover - interface parity
+        return None
+
+
+@pytest.mark.asyncio
+async def test_transport_error_falls_back_to_opus() -> None:
+    stub = _FlakyAnthropicClient(fail_models={"claude-fable-5"})
+    client = Fable5Client(api_key="test", client=stub)  # type: ignore[arg-type]
+
+    response = await client.reason(_request())
+
+    assert stub.messages.calls == ["claude-fable-5", "claude-opus-4-8"]
+    assert response.meta.fallback_used is True
+    assert "APIConnectionError" in response.meta.fallback_reason
+
+
+@pytest.mark.asyncio
+async def test_both_models_failing_raises_fable5_error() -> None:
+    from neuron_vision.fable5.client import Fable5Error
+
+    stub = _FlakyAnthropicClient(fail_models={"claude-fable-5", "claude-opus-4-8"})
+    client = Fable5Client(api_key="test", client=stub)  # type: ignore[arg-type]
+
+    with pytest.raises(Fable5Error, match="Both claude-fable-5 and claude-opus-4-8"):
+        await client.reason(_request())
