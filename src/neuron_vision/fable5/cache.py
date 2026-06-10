@@ -12,17 +12,23 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 import time
 from collections import OrderedDict
 
 
 class TTLCache:
-    """LRU + TTL cache mapping request fingerprints to serialized results."""
+    """LRU + TTL cache mapping request fingerprints to serialized results.
+
+    Thread-safe: a Cloud Run instance serves concurrent requests, so
+    get/put/evict are guarded by a lock.
+    """
 
     def __init__(self, max_entries: int = 256, ttl_seconds: float = 300.0) -> None:
         self._max_entries = max_entries
         self._ttl = ttl_seconds
         self._entries: OrderedDict[str, tuple[float, str]] = OrderedDict()
+        self._lock = threading.Lock()
 
     @staticmethod
     def fingerprint(operation: str, payload: dict[str, object]) -> str:
@@ -34,23 +40,26 @@ class TTLCache:
     def get(self, key: str) -> str | None:
         """Return the cached value or None if absent/expired."""
 
-        entry = self._entries.get(key)
-        if entry is None:
-            return None
-        expires_at, value = entry
-        if time.monotonic() >= expires_at:
-            del self._entries[key]
-            return None
-        self._entries.move_to_end(key)
-        return value
+        with self._lock:
+            entry = self._entries.get(key)
+            if entry is None:
+                return None
+            expires_at, value = entry
+            if time.monotonic() >= expires_at:
+                self._entries.pop(key, None)
+                return None
+            self._entries.move_to_end(key)
+            return value
 
     def put(self, key: str, value: str) -> None:
         """Insert a value, evicting the least-recently-used entry if full."""
 
-        self._entries[key] = (time.monotonic() + self._ttl, value)
-        self._entries.move_to_end(key)
-        while len(self._entries) > self._max_entries:
-            self._entries.popitem(last=False)
+        with self._lock:
+            self._entries[key] = (time.monotonic() + self._ttl, value)
+            self._entries.move_to_end(key)
+            while len(self._entries) > self._max_entries:
+                self._entries.popitem(last=False)
 
     def __len__(self) -> int:
-        return len(self._entries)
+        with self._lock:
+            return len(self._entries)

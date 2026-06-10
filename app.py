@@ -326,12 +326,25 @@ if run_clicked and image_bytes:
 
     t0 = time.perf_counter()
 
+    pipeline_timeout = float(os.environ.get("PIPELINE_TIMEOUT_SECONDS", "300"))
     with st.spinner("Running 5-agent QC brigade …"):
         try:
             if demo_mode:
                 result = pipeline.run(image_bytes, on_stage=on_stage)
             else:
-                result = asyncio.run(pipeline.run_async(image_bytes, on_stage=on_stage))
+                result = asyncio.run(
+                    asyncio.wait_for(
+                        pipeline.run_async(image_bytes, on_stage=on_stage),
+                        timeout=pipeline_timeout,
+                    )
+                )
+        except TimeoutError:
+            st.error(
+                f"❌ Inspection timed out after {pipeline_timeout:.0f}s. "
+                "Vertex AI may be slow or unreachable — try again or use demo mode."
+            )
+            logger.exception("Pipeline timed out after %.0fs", pipeline_timeout)
+            st.stop()
         except Exception as exc:
             st.error(f"❌ Pipeline error: {exc}")
             logger.exception("Pipeline failed")

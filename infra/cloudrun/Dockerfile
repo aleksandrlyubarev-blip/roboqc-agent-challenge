@@ -15,6 +15,9 @@ COPY src/ src/
 RUN pip install --upgrade pip \
     && pip install .
 
+RUN useradd --create-home --uid 1001 appuser
+USER appuser
+
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/healthz')"
 

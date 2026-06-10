@@ -3,23 +3,53 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import sqlite3
 from pathlib import Path
+from types import TracebackType
 from uuid import UUID
 
+from pydantic import ValidationError
+
 from roboqc_agent.execution_store.models import ExecutionEvent
-from roboqc_agent.schemas import QCReport
+from roboqc_agent.schemas import BoardStatus, QCReport
+
+logger = logging.getLogger(__name__)
+
+DB_PATH_ENV_VAR = "ROBOQC_DB_PATH"
 
 
 class SQLiteExecutionRepository:
-    """Persist QC reports and event timelines in SQLite."""
+    """Persist QC reports and event timelines in SQLite.
 
-    def __init__(self, db_path: str = ":memory:") -> None:
-        self.db_path = db_path
-        if db_path != ":memory:":
-            Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(db_path)
+    The database path resolves from the ``db_path`` argument, then the
+    ``ROBOQC_DB_PATH`` environment variable, then ``:memory:``. The in-memory
+    fallback is for tests and local experiments only — production deployments
+    must point at a persistent volume or reports are lost on restart.
+    """
+
+    def __init__(self, db_path: str | None = None) -> None:
+        resolved = db_path or os.getenv(DB_PATH_ENV_VAR) or ":memory:"
+        self.db_path = resolved
+        if resolved != ":memory:":
+            Path(resolved).parent.mkdir(parents=True, exist_ok=True)
+        self.conn = sqlite3.connect(resolved)
         self._init_schema()
+
+    def close(self) -> None:
+        self.conn.close()
+
+    def __enter__(self) -> SQLiteExecutionRepository:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.close()
 
     def _init_schema(self) -> None:
         self.conn.execute("""
@@ -96,7 +126,11 @@ class SQLiteExecutionRepository:
         ).fetchone()
         if row is None:
             return None
-        return QCReport.model_validate_json(row[0])
+        try:
+            return QCReport.model_validate_json(row[0])
+        except ValidationError:
+            logger.exception("Corrupted qc_reports payload for report_id=%s", report_id)
+            return None
 
     def get_timeline(self, report_id: UUID) -> list[ExecutionEvent]:
         rows = self.conn.execute(
@@ -108,25 +142,39 @@ class SQLiteExecutionRepository:
             """,
             (str(report_id),),
         ).fetchall()
-        return [
-            ExecutionEvent(
-                report_id=UUID(row[0]),
-                event=row[1],
-                payload=json.loads(row[2]),
-                timestamp=row[3],
+        timeline: list[ExecutionEvent] = []
+        for row in rows:
+            try:
+                payload = json.loads(row[2])
+            except json.JSONDecodeError:
+                logger.exception(
+                    "Corrupted event payload for report_id=%s event=%s; skipping row",
+                    report_id,
+                    row[1],
+                )
+                continue
+            timeline.append(
+                ExecutionEvent(
+                    report_id=UUID(row[0]),
+                    event=row[1],
+                    payload=payload,
+                    timestamp=row[3],
+                )
             )
-            for row in rows
-        ]
+        return timeline
 
     def metrics(self) -> dict[str, int]:
         completed_reports = self.conn.execute(
-            "SELECT COUNT(*) FROM qc_reports WHERE status != 'in_progress'"
+            "SELECT COUNT(*) FROM qc_reports WHERE status != ?",
+            (BoardStatus.IN_PROGRESS.value,),
         ).fetchone()[0]
         hold_reports = self.conn.execute(
-            "SELECT COUNT(*) FROM qc_reports WHERE status = 'hold'"
+            "SELECT COUNT(*) FROM qc_reports WHERE status = ?",
+            (BoardStatus.COMPLETE_HOLD.value,),
         ).fetchone()[0]
         rework_reports = self.conn.execute(
-            "SELECT COUNT(*) FROM qc_reports WHERE status = 'rework'"
+            "SELECT COUNT(*) FROM qc_reports WHERE status = ?",
+            (BoardStatus.COMPLETE_REWORK.value,),
         ).fetchone()[0]
         timeline_events_total = self.conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
         return {
