@@ -1,0 +1,8 @@
+# Minimal runtime deps for the Fable 5 reasoning service (Cloud Run).
+# Kept separate from the root requirements.txt: this image must stay slim —
+# no Streamlit, no Vertex SDK, no Phoenix.
+anthropic>=0.49.0
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.7.0
+google-cloud-secret-manager>=2.20.0
