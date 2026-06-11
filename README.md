@@ -134,7 +134,7 @@ provider, but it is not executed by the deployed Cloud Run Streamlit service.
 
 | Layer | Technology |
 |-------|-----------|
-| **Agent architecture** | Typed 5-agent runtime + [Google ADK](https://google.github.io/adk-docs/) graph scaffold |
+| **Agent architecture** | Typed 5-agent runtime (`src/neuron_vision`); legacy [Google ADK](https://google.github.io/adk-docs/) scaffold kept under `src/roboqc_agent` |
 | **Vision + reasoning** | Vertex AI **Gemini 2.5 Pro** (us-central1) |
 | **Structured output** | Pydantic v2 — all agent outputs are strictly typed |
 | **UI** | Streamlit — live agent progress, colour-coded verdict badge, Evidence Log |

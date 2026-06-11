@@ -6,6 +6,7 @@ Vimeo as an unlisted video.
 ## Upload Assets
 
 - **Video:** `video/neuron_vision_V5_final.mp4` (1920×1080, 175 s, H.264)
+- **Thumbnail:** `video/neuron_vision_V5_thumbnail.png` (1280×720)
 - **Script / timecodes:** `video/VO_SCRIPT_V5.md`
 - **Build pipeline:** `video/README.md` (fully reproducible: PIL + Edge TTS + ffmpeg)
 
