@@ -43,11 +43,9 @@ SEGMENTS = [
          "zero infrastructure, cents per inspection, and a new design means "
          "editing a prompt. This is QC that scales down to a ten-person shop, "
          "not just up to a gigafactory."),
-    (115, "And it's not a black box. Every run is traced with Arize Phoenix: "
-          "one hundred forty-two traces so far, ninety-eight point six percent "
-          "success, P95 latency six point two seconds. When an agent disagrees "
-          "with a human inspector, we replay exactly what it saw, and what it "
-          "said."),
+    (115, "And it's not a black box. Every run is traced with Arize Phoenix. "
+          "When an agent disagrees with a human inspector, we replay exactly "
+          "what it saw, and what it said."),
     (136, "The whole pipeline is this honest. Typed agents, one gather call, "
           "and response schemas generated straight from Pydantic models. No "
           "frameworks fighting frameworks. Vertex AI and about two hundred "

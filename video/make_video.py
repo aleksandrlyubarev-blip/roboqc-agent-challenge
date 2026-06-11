@@ -5,16 +5,18 @@ with crossfades. Output: 1920x1080 @ 30 fps, H.264, ~175 s, well under 8 MB.
 
 Usage:
     python video/make_frames.py
-    python video/make_video.py [output.mp4] [--audio voiceover.wav]
+    python video/make_vo.py
+    python video/make_video.py [output.mp4] [--audio vo_audio.mp3]
 
 Without --audio a silent track is muxed in; with --audio (see
-make_voiceover.py) the narration is encoded at 48 kbps mono AAC.
+make_vo.py) the narration is encoded at 48 kbps mono AAC.
 """
 
 from __future__ import annotations
 
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).parent
@@ -92,7 +94,7 @@ def main() -> None:
         "-c:v", "libx264", "-preset", "slow", "-b:v", VBITRATE,
         "-maxrate", "380k", "-bufsize", "760k",
         "-pix_fmt", "yuv420p",
-        "-passlogfile", str(out.parent / "ffpass"),
+        "-passlogfile", str(Path(tempfile.mkdtemp(prefix="nv_ffpass_")) / "ffpass"),
     ]
     subprocess.run(
         common + ["-an", "-pass", "1", "-f", "null", "/dev/null"], check=True

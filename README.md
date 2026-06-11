@@ -1,11 +1,10 @@
-# RoboQC Agent
+# Neuron Vision
 
 **5-agent visual QC for SMT PCB manufacturing**  
-_Live system: Neuron Vision Display · Team RomeoFlexVision · Google for Startups AI Agents Challenge 2026_
+_Team RomeoFlexVision · Google for Startups AI Agents Challenge 2026_
 
 [![Cloud Run](https://img.shields.io/badge/Deploy-Cloud%20Run-4285F4?logo=google-cloud)](https://cloud.google.com/run)
 [![Gemini 2.5 Pro](https://img.shields.io/badge/Model-Gemini%202.5%20Pro-EA4335?logo=google)](https://cloud.google.com/vertex-ai)
-[![ADK](https://img.shields.io/badge/Google-Agent%20Development%20Kit-34A853?logo=google)](https://google.github.io/adk-docs/)
 [![Arize Phoenix](https://img.shields.io/badge/Observability-Arize%20Phoenix-6F42C1)](https://phoenix.arize.com/)
 [![Python 3.11](https://img.shields.io/badge/Python-3.11-3776AB?logo=python)](https://python.org)
 
@@ -19,12 +18,9 @@ _Live system: Neuron Vision Display · Team RomeoFlexVision · Google for Startu
 - **Demo run-of-show:** [docs/demo.md](docs/demo.md)
 - **Submission audit:** [docs/submission_audit.md](docs/submission_audit.md)
 - **Video upload metadata:** [docs/video_upload.md](docs/video_upload.md)
-- **Narrated video candidate:** [assets/video/roboqc_demo_narrated_3min.mp4](assets/video/roboqc_demo_narrated_3min.mp4)
-- **Upload thumbnail:** [assets/video/roboqc_youtube_thumbnail.png](assets/video/roboqc_youtube_thumbnail.png)
-- **Silent draft video:** [assets/video/roboqc_demo_draft_3min.mp4](assets/video/roboqc_demo_draft_3min.mp4)
-- **Higgsfield source clips:** [assets/source/higgsfield](assets/source/higgsfield)
-- **Video frames:** [assets/video_frames](assets/video_frames)
-- **Architecture frame:** [assets/video_frames/frame_09_architecture.png](assets/video_frames/frame_09_architecture.png)
+- **Final video candidate (V5):** [video/neuron_vision_V5_final.mp4](video/neuron_vision_V5_final.mp4)
+- **Video script + fact-check:** [video/VO_SCRIPT_V5.md](video/VO_SCRIPT_V5.md)
+- **Video build pipeline:** [video/README.md](video/README.md)
 
 Local final-check gate:
 
@@ -43,8 +39,6 @@ Then run the strict gate:
 ```bash
 python scripts/verify_submission.py --run-pytest --strict-final
 ```
-
-![RoboQC Agent production architecture](assets/video_frames/frame_09_architecture.png)
 
 ---
 
@@ -351,14 +345,12 @@ roboqc-agent-challenge/
 ├── scripts/
 │   ├── download_datasets.sh        # DeepPCB · VisA · PKU-Market-PCB
 │   ├── deploy_cloudrun.sh          # One-command Cloud Run deploy
-│   ├── generate_video_frames.py    # Deterministic 1280×720 demo frames
-│   ├── build_demo_video.py         # Silent + narrated 3-minute video assembly
 │   ├── set_final_video_url.py      # Patch uploaded video URL into docs
 │   └── verify_submission.py        # Local final-check gate before Devpost submit
-├── assets/
-│   ├── source/higgsfield/          # Higgsfield production-footage source clips
-│   ├── video_frames/               # Submission video stills and architecture frame
-│   └── video/                      # 3-minute MP4 candidate, subtitles, voiceover text
+├── video/
+│   ├── neuron_vision_V5_final.mp4  # Final 175 s submission video candidate
+│   ├── VO_SCRIPT_V5.md             # Narration script + per-claim fact-check table
+│   └── make_frames.py / make_vo.py / make_video.py   # Reproducible build pipeline
 ├── examples/
 │   └── pcb_samples/                # Sample images for demo
 ├── infra/

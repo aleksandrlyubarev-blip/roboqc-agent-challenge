@@ -108,7 +108,7 @@ def kicker(d: ImageDraw.ImageDraw, xy: tuple[int, int], text: str, color) -> Non
 
 
 def footer(d: ImageDraw.ImageDraw, tag: str) -> None:
-    d.text((140, H - 96), "NEURON VISION · RoboQC", font=font(30), fill=DIM)
+    d.text((140, H - 96), "NEURON VISION", font=font(30), fill=DIM)
     d.text((W - 140, H - 96), tag, font=font(30, mono=True), fill=DIM, anchor="ra")
 
 
@@ -306,9 +306,9 @@ def frame_06_observability() -> Image.Image:
     kicker(d, (140, 150), "Arize Phoenix · OpenInference", PURPLE)
     d.text((140, 220), "Every verdict is traceable.", font=font(96), fill=INK)
 
-    stats = [("142", "traces captured", CYAN),
-             ("98.6%", "pipeline success", GREEN),
-             ("6.2 s", "P95 latency", AMBER)]
+    stats = [("6", "spans per inspection", CYAN),
+             ("100%", "schema-validated outputs", GREEN),
+             ("0", "free-text decisions", AMBER)]
     bw = 640
     for i, (big, small, color) in enumerate(stats):
         x = 150 + i * (bw + 70)
@@ -399,7 +399,7 @@ def frame_08_cta() -> Image.Image:
 
     d.text((W // 2, 1060), "Vertex AI Gemini 2.5 Pro  ·  Cloud Run  ·  Arize Phoenix",
            font=font(40, mono=True), fill=DIM, anchor="mm")
-    d.text((W // 2, 1140), "Google Cloud Rapid Agent Hackathon 2026 — Arize partner track",
+    d.text((W // 2, 1140), "Google for Startups AI Agents Challenge 2026 — Arize partner track",
            font=font(36, bold=False), fill=DIM, anchor="mm")
     footer(d, "08 / 08")
     return img

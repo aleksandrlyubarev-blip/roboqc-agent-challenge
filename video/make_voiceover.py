@@ -66,11 +66,9 @@ VO: list[str] = [
     "design means editing a prompt. This is QC that scales down to a "
     "ten-person shop, not just up to a gigafactory.",
     # 06 — observability
-    "And it's not a black box. Every run is traced with Arize Phoenix: one "
-    "hundred forty-two traces so far, ninety-eight point six percent "
-    "success, P ninety-five latency six point two seconds. When an agent "
-    "disagrees with a human inspector, we replay exactly what it saw, and "
-    "what it said.",
+    "And it's not a black box. Every run is traced with Arize Phoenix. "
+    "When an agent disagrees with a human inspector, we replay exactly "
+    "what it saw, and what it said.",
     # 07 — code
     "The whole pipeline is this honest. Typed agents, one gather call, and "
     "response schemas generated straight from Pydantic models. No "

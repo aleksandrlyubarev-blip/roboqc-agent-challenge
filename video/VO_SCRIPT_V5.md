@@ -6,10 +6,10 @@
 **Delivery:** read at a normal conversational pace; the timecodes below match
 the final cut of `neuron_vision_V5_fable.mp4` (8 segments, crossfades at the
 boundaries).
-**Synthesized track:** `make_voiceover.py` renders this script with Piper TTS
-(`en_US-ryan-high`) — the shipped mp4 already carries that narration. The
-text below is the human-readable master; the TTS copy in `make_voiceover.py`
-spells out numerals and abbreviations for clean pronunciation.
+**Synthesized track:** `make_vo.py` renders this script with Edge TTS
+(`en-US-GuyNeural`) and places each segment on the 175 s timeline at its
+cue point. The text below is the human-readable master; the TTS copy in
+`make_vo.py` spells out numerals and abbreviations for clean pronunciation.
 
 ---
 
@@ -54,10 +54,9 @@ spells out numerals and abbreviations for clean pronunciation.
 
 ## [1:55 – 2:16] · v5_06_observability — ARIZE PHOENIX
 
-> And it's not a black box. Every run is traced with Arize Phoenix:
-> one hundred forty-two traces so far, ninety-eight point six percent
-> success, P95 latency six point two seconds. When an agent disagrees with a
-> human inspector, we replay exactly what it saw — and what it said.
+> And it's not a black box. Every run is traced with Arize Phoenix.
+> When an agent disagrees with a human inspector, we replay exactly
+> what it saw — and what it said.
 
 ## [2:16 – 2:39] · v5_07_tech_code — THE CODE
 
@@ -83,6 +82,7 @@ spells out numerals and abbreviations for clean pronunciation.
 | 14.1 s → 4.7 s (3×) | V4 benchmark, sequential vs parallel run |
 | Pydantic v2 → `response_schema` | `src/neuron_vision/agents/base.py` |
 | Gemini 2.5 Pro, us-central1 | `src/neuron_vision/agents/base.py:24` |
-| Phoenix: 142 traces · 98.6% · P95 6.2 s | Arize Phoenix project dashboard |
+| 6 spans per inspection (1 pipeline + 5 agents) | `pipeline.py:94`, `agents/base.py:147`, `agents/chief_inspector.py:112` |
+| 100% schema-validated outputs · 0 free-text decisions | `agents/base.py` (`response_schema` + `model_validate_json` on both paths) |
 | ~200-line orchestrator | `pipeline.py` = 203 lines |
 | Live URL | `https://neuron-vision-display-z3mwyxcila-uc.a.run.app` |
