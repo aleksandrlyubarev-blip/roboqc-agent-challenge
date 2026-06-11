@@ -136,11 +136,30 @@ provider, but it is not executed by the deployed Cloud Run Streamlit service.
 |-------|-----------|
 | **Agent architecture** | Typed 5-agent runtime (`src/neuron_vision`); legacy [Google ADK](https://google.github.io/adk-docs/) scaffold kept under `src/roboqc_agent` |
 | **Vision + reasoning** | Vertex AI **Gemini 2.5 Pro** (us-central1) |
+| **Deep causal reasoning** | **Claude Fable 5** (Anthropic) with Opus 4.8 fallback — see [docs/fable5_integration.md](docs/fable5_integration.md) |
 | **Structured output** | Pydantic v2 — all agent outputs are strictly typed |
 | **UI** | Streamlit — live agent progress, colour-coded verdict badge, Evidence Log |
 | **Observability** | Arize Phoenix + OpenTelemetry + `openinference-instrumentation-vertexai` |
 | **Deployment** | Cloud Run — 2 vCPU / 2Gi, min instances during judging |
 | **Deploy tooling** | `gcloud` + Cloud Build (`scripts/deploy_cloudrun.sh`) |
+
+---
+
+## Claude Fable 5 — Deep Reasoning Engine
+
+Root-cause analysis and engineering recommendations are powered by **Claude Fable 5**
+(`claude-fable-5`, 1M-token context) through two integration paths:
+
+1. **Cloud Run service** (`src/neuron_vision/fable5/`) — FastAPI endpoints
+   `/analyze-defect`, `/root-cause`, `/recommendations` calling the Anthropic Messages API
+   with structured output (JSON Schema), adaptive thinking and graceful fallback to
+   Claude Opus 4.8 on refusal/rate-limit/timeout.
+2. **Vertex AI Agent Builder custom tool** (`infra/fable5/agent_builder_tool.json`) for
+   conversational agents.
+
+The Anthropic API key lives only in **Google Cloud Secret Manager**; every call is logged
+to Cloud Logging with token usage and per-call cost estimates. Setup, IAM, deploy and
+monitoring: [docs/fable5_integration.md](docs/fable5_integration.md).
 
 ---
 

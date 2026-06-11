@@ -1,0 +1,66 @@
+# Cloud Build pipeline for the Fable 5 reasoning service.
+#
+# Usage (from the repo root):
+#   gcloud builds submit --config infra/fable5/cloudbuild.yaml \
+#     --substitutions _REGION=us-central1
+#
+# Prerequisites (one-time, see docs/fable5_integration.md):
+#   - Artifact Registry repo `neuron-vision` in $_REGION
+#   - Secret `anthropic-api-key` in Secret Manager
+#   - Service account `fable5-runner@$PROJECT_ID.iam.gserviceaccount.com`
+#     with roles/secretmanager.secretAccessor on that secret only
+substitutions:
+  _REGION: us-central1
+  _SERVICE: fable5-reasoning
+  _REPO: neuron-vision
+  _IMAGE: ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - infra/fable5/Dockerfile
+      - -t
+      - ${_IMAGE}:${SHORT_SHA}
+      - -t
+      - ${_IMAGE}:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, "${_IMAGE}"]
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_IMAGE}:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --service-account=fable5-runner@${PROJECT_ID}.iam.gserviceaccount.com
+      # Secret Manager-backed env var: the key never appears in the service
+      # config, image or build logs.
+      - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest
+      - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID}
+      # Reasoning calls can take up to ~120 s; give the request a margin.
+      - --timeout=180
+      - --memory=512Mi
+      - --cpu=1
+      - --concurrency=8
+      - --min-instances=0
+      - --max-instances=5
+      # The dashboard and Agent Builder call this service server-to-server;
+      # require IAM auth (callers need roles/run.invoker).
+      - --no-allow-unauthenticated
+
+images:
+  - ${_IMAGE}:${SHORT_SHA}
+  - ${_IMAGE}:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

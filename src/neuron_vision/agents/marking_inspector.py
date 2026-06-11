@@ -6,12 +6,16 @@ Specialist agent for silkscreen, QR codes, barcodes, and component markings:
   • QR/barcode readability
   • Polarity indicators
 """
+
 from __future__ import annotations
+
+from typing import Any
 
 from ..schemas import MarkingReport, TriageResult
 from .base import NeuronVisionAgent
 
-_INSTRUCTION = """You are the Marking & Labeling Inspector in the Neuron Vision Display system (RomeoFlexVision),
+_INSTRUCTION = """You are the Marking & Labeling Inspector in the Neuron Vision Display
+system (RomeoFlexVision),
 a professional multi-agent QC platform for SMT PCB manufacturing.
 
 Your SOLE focus is the readability and completeness of all markings on the PCB:
@@ -52,7 +56,7 @@ class MarkingInspector(NeuronVisionAgent[MarkingReport]):
     instruction = _INSTRUCTION
     output_model = MarkingReport
 
-    def _build_prompt(self, context: dict) -> str:
+    def _build_prompt(self, context: dict[str, Any]) -> str:
         triage: TriageResult | None = context.get("triage")
         if triage:
             return (

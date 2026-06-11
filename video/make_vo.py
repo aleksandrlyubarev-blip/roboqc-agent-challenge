@@ -52,7 +52,7 @@ SEGMENTS = [
           "lines of orchestration you can actually read."),
     (159, "Neuron Vision. Factory-grade inspection, no factory budget required. "
           "The demo is live, the repo is open, links on screen. Built for the "
-          "Google Cloud Rapid Agent Hackathon, traced end to end with Arize "
+          "Google for Startups AI Agents Challenge, traced end to end with Arize "
           "Phoenix."),
 ]
 

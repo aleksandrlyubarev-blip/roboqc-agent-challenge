@@ -2,6 +2,7 @@
 Base class for all Neuron Vision Display agents.
 Uses Google ADK patterns with Vertex AI Gemini 2.5 Pro as the model backend.
 """
+
 from __future__ import annotations
 
 import json
@@ -9,7 +10,7 @@ import logging
 import os
 from abc import ABC
 from copy import deepcopy
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 import vertexai
 from pydantic import BaseModel
@@ -64,7 +65,7 @@ def _ensure_vertexai() -> None:
         _vertexai_initialized = True
 
 
-def _vertex_response_schema(model: type[BaseModel]) -> dict:
+def _vertex_response_schema(model: type[BaseModel]) -> dict[str, object]:
     """Convert Pydantic JSON Schema into the subset accepted by Vertex AI."""
     schema = model.model_json_schema()
     defs = schema.get("$defs", {})
@@ -84,19 +85,24 @@ def _vertex_response_schema(model: type[BaseModel]) -> dict:
                 return resolve(resolved)
 
         cleaned: dict[str, object] = {}
+        prop_names: list[str] = []
         for key, value in node.items():
             if key == "properties":
-                cleaned[key] = {
-                    prop_name: resolve(prop_schema)
-                    for prop_name, prop_schema in value.items()
+                resolved_props = {
+                    prop_name: resolve(prop_schema) for prop_name, prop_schema in value.items()
                 }
+                cleaned[key] = resolved_props
+                prop_names = list(resolved_props)
             elif key in _VERTEX_SCHEMA_KEYS:
                 cleaned[key] = resolve(value)
-        if "properties" in cleaned and "propertyOrdering" not in cleaned:
-            cleaned["propertyOrdering"] = list(cleaned["properties"])
+        if prop_names and "propertyOrdering" not in cleaned:
+            cleaned["propertyOrdering"] = prop_names
         return cleaned
 
-    return resolve(schema)
+    resolved_schema = resolve(schema)
+    if not isinstance(resolved_schema, dict):  # pragma: no cover - schema root is an object
+        raise TypeError("Pydantic schema root must resolve to an object")
+    return resolved_schema
 
 
 class NeuronVisionAgent(ABC, Generic[T]):
@@ -125,7 +131,7 @@ class NeuronVisionAgent(ABC, Generic[T]):
     # Public API
     # ------------------------------------------------------------------
 
-    def run(self, image_bytes: bytes, context: dict | None = None) -> T:
+    def run(self, image_bytes: bytes, context: dict[str, Any] | None = None) -> T:
         """
         Run the agent against a PCB image.
 
@@ -179,7 +185,7 @@ class NeuronVisionAgent(ABC, Generic[T]):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _build_prompt(self, context: dict) -> str:
+    def _build_prompt(self, context: dict[str, Any]) -> str:
         """Override in subclasses to inject upstream context into the prompt."""
         return ""
 

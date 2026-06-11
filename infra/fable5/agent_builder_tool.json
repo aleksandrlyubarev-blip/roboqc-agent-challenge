@@ -1,0 +1,131 @@
+{
+  "_comment": "Vertex AI Agent Builder Custom Tool: claude_fable5_reasoning. Direct HTTP tool definition against the Anthropic Messages API. The {{ANTHROPIC_API_KEY}} placeholder must be bound to the Secret Manager secret 'anthropic-api-key' in the Agent Builder tool auth config (apiKey auth, header x-api-key) — never paste the key literally. Prefer pointing this tool at the Cloud Run service /analyze-defect instead (see openapi_cloudrun variant below): the key then stays server-side and never enters Agent Builder.",
+  "displayName": "claude_fable5_reasoning",
+  "description": "Deep causal reasoning, root cause analysis and recommendations for display-panel defects via Claude Fable 5. Call for any 'why did this happen' or 'what should we do' question about defects. Do NOT call for simple lookups or formatting.",
+  "httpTool": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "headers": {
+      "x-api-key": "{{ANTHROPIC_API_KEY}}",
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json"
+    },
+    "requestBodyTemplate": {
+      "model": "claude-fable-5",
+      "max_tokens": 16000,
+      "thinking": { "type": "adaptive" },
+      "output_config": {
+        "effort": "high",
+        "format": {
+          "type": "json_schema",
+          "schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["summary", "primary_root_cause", "causal_chain", "recommendations"],
+            "properties": {
+              "summary": { "type": "string" },
+              "primary_root_cause": { "type": "string" },
+              "causal_chain": { "type": "array", "items": { "type": "string" } },
+              "ruled_out": { "type": "array", "items": { "type": "string" } },
+              "recommendations": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["action", "rationale", "priority"],
+                  "properties": {
+                    "action": { "type": "string" },
+                    "rationale": { "type": "string" },
+                    "priority": { "type": "string", "enum": ["immediate", "short_term", "long_term"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "system": "You are the reasoning engine of Neuron Vision Display (RomeoFlexVision). Perform deep causal analysis of display-panel manufacturing defects for QC engineers. Reason from manufacturing physics, separate the primary root cause from contributing factors, list ruled-out hypotheses, and produce concrete line-actionable recommendations. Respond strictly in the enforced JSON schema.",
+      "messages": [
+        {
+          "role": "user",
+          "content": "{{defect_analysis_request}}"
+        }
+      ]
+    },
+    "inputParameters": [
+      {
+        "name": "defect_analysis_request",
+        "type": "string",
+        "required": true,
+        "description": "JSON or plain-text description of observed defects plus manufacturing context (line, product, stage, recent changes)."
+      }
+    ],
+    "responseMapping": {
+      "_comment": "The Messages API returns content as a list of blocks; with output_config.format the first text block is guaranteed schema-valid JSON. If stop_reason == 'refusal' (Fable 5 guardrails), retry the same body with model='claude-opus-4-8'.",
+      "result": "$.content[0].text",
+      "stop_reason": "$.stop_reason",
+      "input_tokens": "$.usage.input_tokens",
+      "output_tokens": "$.usage.output_tokens"
+    }
+  },
+  "openapi_cloudrun_variant": {
+    "_comment": "Recommended production wiring: register this OpenAPI spec as the Agent Builder tool and authenticate with the agent's service account (ID token, roles/run.invoker). The Anthropic key stays inside Cloud Run.",
+    "openapi": "3.0.0",
+    "info": { "title": "Fable 5 Reasoning Service", "version": "1.0.0" },
+    "servers": [{ "url": "https://fable5-reasoning-<hash>-uc.a.run.app" }],
+    "paths": {
+      "/analyze-defect": {
+        "post": {
+          "operationId": "claude_fable5_reasoning",
+          "summary": "Deep causal reasoning and recommendations for display defects via Claude Fable 5.",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["defects"],
+                  "properties": {
+                    "defects": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["defect_type", "location", "severity", "confidence"],
+                        "properties": {
+                          "defect_type": { "type": "string" },
+                          "location": { "type": "string" },
+                          "severity": { "type": "string", "enum": ["minor", "moderate", "critical"] },
+                          "confidence": { "type": "number" },
+                          "details": { "type": "string" }
+                        }
+                      }
+                    },
+                    "context": {
+                      "type": "object",
+                      "properties": {
+                        "line_id": { "type": "string" },
+                        "product": { "type": "string" },
+                        "stage": { "type": "string" },
+                        "recent_changes": { "type": "array", "items": { "type": "string" } },
+                        "environment": { "type": "string" },
+                        "defect_history": { "type": "string" }
+                      }
+                    },
+                    "question": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Structured reasoning result with call metadata.",
+              "content": { "application/json": { "schema": { "type": "object" } } }
+            },
+            "503": { "description": "Both Fable 5 and the Opus 4.8 fallback failed." }
+          }
+        }
+      }
+    }
+  }
+}
