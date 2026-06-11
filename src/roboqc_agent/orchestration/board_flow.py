@@ -25,6 +25,7 @@ from roboqc_agent.schemas import (
     BoardStatus,
     Defect,
     FMEAEntry,
+    OperatorResponse,
     QCReport,
     TileReport,
 )
@@ -144,6 +145,10 @@ class BoardFlowCoordinator:
     def is_complete(self) -> bool:
         return len(self._tile_reports) >= self.expected_tiles
 
+    @property
+    def tiles_recorded(self) -> int:
+        return len(self._tile_reports)
+
     def record_tile(self, tile_report: TileReport) -> None:
         """Persist one finalized tile; enforce policy over the agent action."""
 
@@ -161,8 +166,14 @@ class BoardFlowCoordinator:
             tile_report.fmea_entries,
             engine=self.policy_engine,
         )
-        if policy_action.kind is not tile_report.agent_action.kind:
-            # The deterministic policy wins over the LLM proposal.
+        agent_action = tile_report.agent_action
+        if (
+            policy_action.kind is not agent_action.kind
+            or policy_action.triggered_hitl != agent_action.triggered_hitl
+        ):
+            # The deterministic policy wins over the LLM proposal. Both the
+            # routing kind and the HITL flag are enforced — a stale
+            # triggered_hitl would silently skip a required senior review.
             tile_report = tile_report.model_copy(update={"agent_action": policy_action})
 
         self._tile_reports.append(tile_report)
@@ -179,6 +190,54 @@ class BoardFlowCoordinator:
             )
         )
 
+    def record_operator_response(self, response: OperatorResponse) -> TileReport:
+        """Attach the operator's HITL decision to a recorded tile.
+
+        Tiles whose action carries ``triggered_hitl`` block board finalization
+        until the operator accepts or overrides; this is the friction policy's
+        human-in-the-loop gate.
+        """
+
+        if self._finalized:
+            raise RuntimeError("Board flow already finalized")
+
+        for index, tile_report in enumerate(self._tile_reports):
+            if tile_report.tile.tile_id != response.tile_id:
+                continue
+            if tile_report.operator_response is not None:
+                raise ValueError(f"Tile {response.tile_id} already has an operator response")
+            updated = tile_report.model_copy(
+                update={
+                    "operator_response": response,
+                    "finalized_at": datetime.now(UTC),
+                }
+            )
+            self._tile_reports[index] = updated
+            self.repository.add_event(
+                ExecutionEvent(
+                    report_id=self._ensure_report_id(),
+                    event="operator_response",
+                    payload={
+                        "tile_id": str(response.tile_id),
+                        "operator_id": response.operator_id,
+                        "action": response.action.value,
+                        "final_kind": response.final_kind.value,
+                    },
+                )
+            )
+            return updated
+
+        raise KeyError(f"Tile {response.tile_id} is not recorded for board {self.board_id}")
+
+    def pending_hitl_tiles(self) -> list[TileReport]:
+        """Tiles that still need an operator decision before finalization."""
+
+        return [
+            tr
+            for tr in self._tile_reports
+            if tr.agent_action.triggered_hitl and tr.operator_response is None
+        ]
+
     def finalize(self) -> QCReport:
         """Assemble, persist, and return the board-level QCReport."""
 
@@ -189,11 +248,20 @@ class BoardFlowCoordinator:
             )
         if self._finalized:
             raise RuntimeError("Board flow already finalized")
+        pending = self.pending_hitl_tiles()
+        if pending:
+            tile_ids = ", ".join(str(tr.tile.tile_id) for tr in pending)
+            raise RuntimeError(f"Cannot finalize: operator decision pending for tiles: {tile_ids}")
 
         worst_kind = max(
-            (tr.agent_action.kind for tr in self._tile_reports),
+            (self._effective_kind(tr) for tr in self._tile_reports),
             key=lambda kind: _ACTION_PRECEDENCE[kind],
         )
+        signoff_times = [
+            tr.operator_response.responded_at
+            for tr in self._tile_reports
+            if tr.operator_response is not None
+        ]
         report = QCReport(
             report_id=self._ensure_report_id(),
             board_id=self.board_id,
@@ -206,6 +274,7 @@ class BoardFlowCoordinator:
             senior_escalations=[
                 tr.tile.tile_id for tr in self._tile_reports if tr.agent_action.triggered_hitl
             ],
+            operator_signoff_at=max(signoff_times) if signoff_times else None,
         )
         self.repository.save_report(report)
         self.repository.add_event(
@@ -220,6 +289,14 @@ class BoardFlowCoordinator:
         )
         self._finalized = True
         return report
+
+    @staticmethod
+    def _effective_kind(tile_report: TileReport) -> ActionKind:
+        """Operator's final decision wins over the agent proposal."""
+
+        if tile_report.operator_response is not None:
+            return tile_report.operator_response.final_kind
+        return tile_report.agent_action.kind
 
     def _ensure_report_id(self) -> UUID:
         if self._report_id is None:

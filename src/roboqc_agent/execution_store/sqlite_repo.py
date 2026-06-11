@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import sqlite3
+import threading
 from pathlib import Path
 from types import TracebackType
 from uuid import UUID
@@ -27,6 +28,9 @@ class SQLiteExecutionRepository:
     ``ROBOQC_DB_PATH`` environment variable, then ``:memory:``. The in-memory
     fallback is for tests and local experiments only — production deployments
     must point at a persistent volume or reports are lost on restart.
+
+    Thread-safe: the FastAPI surface serves requests from worker threads, so
+    access to the shared connection is serialized with a lock.
     """
 
     def __init__(self, db_path: str | None = None) -> None:
@@ -34,7 +38,8 @@ class SQLiteExecutionRepository:
         self.db_path = resolved
         if resolved != ":memory:":
             Path(resolved).parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(resolved)
+        self.conn = sqlite3.connect(resolved, check_same_thread=False)
+        self._lock = threading.Lock()
         self._init_schema()
 
     def close(self) -> None:
@@ -76,6 +81,10 @@ class SQLiteExecutionRepository:
         self.conn.commit()
 
     def add_event(self, event: ExecutionEvent) -> None:
+        with self._lock:
+            self._add_event_locked(event)
+
+    def _add_event_locked(self, event: ExecutionEvent) -> None:
         self.conn.execute(
             """
             INSERT INTO events (report_id, event, payload_json, timestamp)
@@ -91,6 +100,10 @@ class SQLiteExecutionRepository:
         self.conn.commit()
 
     def save_report(self, report: QCReport) -> None:
+        with self._lock:
+            self._save_report_locked(report)
+
+    def _save_report_locked(self, report: QCReport) -> None:
         self.conn.execute(
             """
             INSERT OR REPLACE INTO qc_reports
@@ -120,10 +133,11 @@ class SQLiteExecutionRepository:
         self.conn.commit()
 
     def get_report(self, report_id: UUID) -> QCReport | None:
-        row = self.conn.execute(
-            "SELECT payload_json FROM qc_reports WHERE report_id = ?",
-            (str(report_id),),
-        ).fetchone()
+        with self._lock:
+            row = self.conn.execute(
+                "SELECT payload_json FROM qc_reports WHERE report_id = ?",
+                (str(report_id),),
+            ).fetchone()
         if row is None:
             return None
         try:
@@ -133,15 +147,16 @@ class SQLiteExecutionRepository:
             return None
 
     def get_timeline(self, report_id: UUID) -> list[ExecutionEvent]:
-        rows = self.conn.execute(
-            """
+        with self._lock:
+            rows = self.conn.execute(
+                """
             SELECT report_id, event, payload_json, timestamp
             FROM events
             WHERE report_id = ?
             ORDER BY id ASC
             """,
-            (str(report_id),),
-        ).fetchall()
+                (str(report_id),),
+            ).fetchall()
         timeline: list[ExecutionEvent] = []
         for row in rows:
             try:
@@ -164,6 +179,10 @@ class SQLiteExecutionRepository:
         return timeline
 
     def metrics(self) -> dict[str, int]:
+        with self._lock:
+            return self._metrics_locked()
+
+    def _metrics_locked(self) -> dict[str, int]:
         completed_reports = self.conn.execute(
             "SELECT COUNT(*) FROM qc_reports WHERE status != ?",
             (BoardStatus.IN_PROGRESS.value,),

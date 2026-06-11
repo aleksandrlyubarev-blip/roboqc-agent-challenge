@@ -166,3 +166,37 @@ def test_coordinator_rejects_foreign_board_tiles() -> None:
     foreign = foreign.model_copy(update={"tile": _tile(board_id="board-2")})
     with pytest.raises(ValueError, match="board"):
         coordinator.record_tile(foreign)
+
+
+def test_coordinator_enforces_policy_hitl_flag_not_just_kind() -> None:
+    repo = SQLiteExecutionRepository()
+    coordinator = BoardFlowCoordinator(
+        board_id="board-1",
+        lot_id="lot-1",
+        operator_id="op-1",
+        expected_tiles=1,
+        repository=repo,
+    )
+
+    # Same REWORK kind, but FMEA says escalate_to_senior — the LLM's
+    # triggered_hitl=False must be replaced by the policy's True.
+    tile = _tile()
+    defect = _defect(tile.tile_id, confidence=0.97)
+    entry = _fmea(defect, Severity.MAJOR).model_copy(update={"escalate_to_senior": True})
+    tile_report = TileReport(
+        tile=tile,
+        defects=[defect],
+        fmea_entries=[entry],
+        agent_action=Action(
+            tile_id=tile.tile_id,
+            kind=ActionKind.REWORK,
+            reason="agent proposal",
+            triggered_hitl=False,
+            confidence=0.97,
+        ),
+    )
+    coordinator.record_tile(tile_report)
+
+    assert coordinator.pending_hitl_tiles(), "escalated tile must wait for the operator"
+    with pytest.raises(RuntimeError, match="operator decision pending"):
+        coordinator.finalize()
