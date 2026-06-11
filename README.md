@@ -13,7 +13,7 @@ _Team RomeoFlexVision · Google for Startups AI Agents Challenge 2026_
 ## Submission Links
 
 - **Live demo:** https://neuron-vision-display-z3mwyxcila-uc.a.run.app
-- **Final video:** add YouTube/Vimeo unlisted URL after final upload
+- **Final video:** https://youtu.be/WETa9dAxfUM?si=4hW-69w6i48cOK-S
 - **Devpost copy:** [docs/devpost_submission.md](docs/devpost_submission.md)
 - **Demo run-of-show:** [docs/demo.md](docs/demo.md)
 - **Submission audit:** [docs/submission_audit.md](docs/submission_audit.md)

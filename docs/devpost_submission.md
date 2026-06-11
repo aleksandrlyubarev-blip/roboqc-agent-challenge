@@ -40,7 +40,7 @@ Vertex AI Gemini 2.5 Pro, Arize Phoenix, OpenTelemetry, OpenInference, Pydantic 
 - **Live Demo:** https://neuron-vision-display-z3mwyxcila-uc.a.run.app
 - **GitHub:** https://github.com/aleksandrlyubarev-blip/roboqc-agent-challenge
 - **Final Video Candidate (V5):** `video/neuron_vision_V5_final.mp4` (script: `video/VO_SCRIPT_V5.md`, pipeline: `video/README.md`)
-- **Final Video:** add YouTube/Vimeo unlisted URL after final upload
+- **Final Video:** https://youtu.be/WETa9dAxfUM?si=4hW-69w6i48cOK-S
 
 ## Suggested Devpost Highlights
 
