@@ -1,0 +1,77 @@
+# GradeLens AWS resources — DynamoDB single-table + S3 photo bucket.
+# Deploy:
+#   aws cloudformation deploy \
+#     --template-file apps/gradelens/infra/gradelens/dynamodb-table.yaml \
+#     --stack-name gradelens \
+#     --parameter-overrides BucketName=gradelens-uploads-<unique> \
+#     --capabilities CAPABILITY_NAMED_IAM
+AWSTemplateFormatVersion: "2010-09-09"
+Description: GradeLens — DynamoDB single-table + S3 uploads bucket
+
+Parameters:
+  TableName:
+    Type: String
+    Default: gradelens
+  BucketName:
+    Type: String
+    Description: Globally-unique S3 bucket name for device photo uploads
+
+Resources:
+  GradeLensTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  UploadsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      LifecycleConfiguration:
+        Rules:
+          # Device photos are only needed for grading; expire to control cost.
+          - Id: expire-uploads
+            Status: Enabled
+            Prefix: uploads/
+            ExpirationInDays: 30
+      CorsConfiguration:
+        # Browser PUTs the photo directly via the presigned URL.
+        CorsRules:
+          - AllowedMethods: [PUT]
+            AllowedOrigins: ["*"] # tighten to your Vercel domain before launch
+            AllowedHeaders: ["*"]
+            MaxAge: 300
+
+Outputs:
+  TableName:
+    Value: !Ref GradeLensTable
+  BucketName:
+    Value: !Ref UploadsBucket
