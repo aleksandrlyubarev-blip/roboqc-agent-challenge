@@ -95,6 +95,17 @@ st.markdown(
               text-align:center; border:1px solid #E0E0E0; }
 .metric-value { font-size:1.8rem; font-weight:700; color:#1565C0; }
 .metric-label { font-size:0.8rem; color:#607D8B; margin-top:2px; }
+
+/* ── Dark mode overrides (badges/pills already have own bg) ─────────── */
+@media (prefers-color-scheme: dark) {
+    .evidence-critical { background:#3E2226; }
+    .evidence-moderate { background:#3E2F1B; }
+    .evidence-minor    { background:#3A371C; }
+    .evidence-info     { background:#1A2C3E; }
+    .metric-box        { background:#262730; border-color:#3D3D46; }
+    .metric-value      { color:#64B5F6; }
+    .metric-label      { color:#B0BEC5; }
+}
 </style>
 """,
     unsafe_allow_html=True,
@@ -102,10 +113,7 @@ st.markdown(
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.image(
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c7/Google_Cloud_logo.svg/200px-Google_Cloud_logo.svg.png",
-        width=140,
-    )
+    st.markdown("### ☁️ Google Cloud")
     st.markdown("## 🔬 Neuron Vision Display")
     st.markdown(
         "**System:** RomeoFlexVision  \n**Model:** Gemini 2.5 Pro  \n**Region:** us-central1"
@@ -120,14 +128,22 @@ with st.sidebar:
         help="Run without Vertex AI — uses pre-built realistic scenarios",
     )
 
+    validated_project_id: str | None = None
     if not demo_mode:
+        from src.neuron_vision.agents.base import is_valid_project_id
+
         project_id = st.text_input(
             "GCP Project ID",
             value=os.environ.get("GOOGLE_CLOUD_PROJECT", ""),
             help="Your Google Cloud project ID",
-        )
-        if project_id:
-            os.environ["GOOGLE_CLOUD_PROJECT"] = project_id
+        ).strip()
+        if project_id and is_valid_project_id(project_id):
+            validated_project_id = project_id
+        elif project_id:
+            st.error(
+                "Invalid project ID: 6-30 lowercase letters, digits or hyphens, "
+                "starting with a letter."
+            )
     else:
         demo_scenario = st.selectbox(
             "Demo scenario",
@@ -159,6 +175,10 @@ with st.sidebar:
         )
     else:
         selected_example = "— select —"
+        st.info(
+            "📂 No sample images found. Run `scripts/download_datasets.sh` "
+            "to populate `examples/pcb_samples/`."
+        )
 
     st.divider()
     st.markdown(
@@ -215,7 +235,7 @@ st.divider()
 
 run_col, spacer = st.columns([2, 5])
 with run_col:
-    live_mode_missing_project = not demo_mode and not os.environ.get("GOOGLE_CLOUD_PROJECT")
+    live_mode_missing_project = not demo_mode and validated_project_id is None
     run_disabled = image_bytes is None or live_mode_missing_project
     run_clicked = st.button(
         "▶️ Run QC Inspection",
@@ -232,8 +252,8 @@ with run_col:
 
 # ── Inspection execution ──────────────────────────────────────────────────────
 if run_clicked and image_bytes:
-    if not demo_mode and not os.environ.get("GOOGLE_CLOUD_PROJECT"):
-        st.error("❌ Set a GCP Project ID in the sidebar before running live inference.")
+    if not demo_mode and validated_project_id is None:
+        st.error("❌ Set a valid GCP Project ID in the sidebar before running live inference.")
         st.stop()
 
     # ── Demo Mode banner ───────────────────────────────────────────────────
@@ -258,7 +278,7 @@ if run_clicked and image_bytes:
         try:
             from src.neuron_vision.pipeline import NeuronVisionPipeline
 
-            pipeline = NeuronVisionPipeline()
+            pipeline = NeuronVisionPipeline(validated_project_id)
         except ImportError as e:
             st.error(
                 f"❌ Import error: {e}. "
@@ -326,12 +346,25 @@ if run_clicked and image_bytes:
 
     t0 = time.perf_counter()
 
+    pipeline_timeout = float(os.environ.get("PIPELINE_TIMEOUT_SECONDS", "300"))
     with st.spinner("Running 5-agent QC brigade …"):
         try:
             if demo_mode:
                 result = pipeline.run(image_bytes, on_stage=on_stage)
             else:
-                result = asyncio.run(pipeline.run_async(image_bytes, on_stage=on_stage))
+                result = asyncio.run(
+                    asyncio.wait_for(
+                        pipeline.run_async(image_bytes, on_stage=on_stage),
+                        timeout=pipeline_timeout,
+                    )
+                )
+        except TimeoutError:
+            st.error(
+                f"❌ Inspection timed out after {pipeline_timeout:.0f}s. "
+                "Vertex AI may be slow or unreachable — try again or use demo mode."
+            )
+            logger.exception("Pipeline timed out after %.0fs", pipeline_timeout)
+            st.stop()
         except Exception as exc:
             st.error(f"❌ Pipeline error: {exc}")
             logger.exception("Pipeline failed")

@@ -8,13 +8,32 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
+import threading
 from abc import ABC
 from copy import deepcopy
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
-import vertexai
 from pydantic import BaseModel
-from vertexai.generative_models import GenerationConfig, GenerativeModel, Part
+
+if TYPE_CHECKING:
+    import vertexai
+    from vertexai.generative_models import GenerationConfig, GenerativeModel, Part
+else:
+    try:  # Optional: demo mode and orchestration tests run without Vertex AI.
+        import vertexai
+        from vertexai.generative_models import GenerationConfig, GenerativeModel, Part
+    except ImportError:  # pragma: no cover - exercised only in minimal envs
+        vertexai = None
+        GenerationConfig = GenerativeModel = Part = None
+
+__all__ = [
+    "GenerationConfig",
+    "GenerativeModel",
+    "NeuronVisionAgent",
+    "Part",
+    "is_valid_project_id",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +41,14 @@ T = TypeVar("T", bound=BaseModel)
 
 # Model configuration — us-central1 as required by the ТЗ.
 # The retired preview ID returns 404 on Vertex AI; use the current stable model.
-_GEMINI_MODEL = "gemini-2.5-pro"
-_REGION = "us-central1"
+_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
+_REGION = os.environ.get("GOOGLE_CLOUD_REGION", "us-central1")
+
+# ```json ... ``` (or bare ``` ... ```) block anywhere in the response.
+_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(.+?)\s*```", re.DOTALL)
 
 _vertexai_initialized = False
+_vertexai_init_lock = threading.Lock()
 _VERTEX_SCHEMA_KEYS = {
     "anyOf",
     "default",
@@ -52,17 +75,42 @@ _VERTEX_SCHEMA_KEYS = {
 }
 
 
-def _ensure_vertexai() -> None:
+# GCP project IDs: 6-30 chars, lowercase letters, digits and hyphens,
+# starting with a letter and not ending with a hyphen.
+_PROJECT_ID_RE = re.compile(r"^[a-z][a-z0-9-]{4,28}[a-z0-9]$")
+
+
+def is_valid_project_id(project_id: str) -> bool:
+    """Check that a string is a plausible GCP project ID."""
+    return bool(_PROJECT_ID_RE.fullmatch(project_id))
+
+
+def _ensure_vertexai(project: str | None = None) -> None:
+    """Initialize Vertex AI once per process.
+
+    ``project`` takes precedence over the ``GOOGLE_CLOUD_PROJECT`` environment
+    variable, so callers (e.g. the UI) can pass a validated value instead of
+    mutating process-wide environment state.
+    """
     global _vertexai_initialized
-    if not _vertexai_initialized:
-        project = os.environ.get("GOOGLE_CLOUD_PROJECT")
-        if not project:
-            raise OSError(
-                "GOOGLE_CLOUD_PROJECT environment variable is not set. "
-                "Copy .env.example to .env and fill in your project ID."
-            )
-        vertexai.init(project=project, location=_REGION)
-        _vertexai_initialized = True
+    with _vertexai_init_lock:
+        if not _vertexai_initialized:
+            if vertexai is None:
+                raise ImportError(
+                    "vertexai is not installed. Install requirements.txt for live "
+                    "inference, or enable demo mode."
+                )
+            project = project or os.environ.get("GOOGLE_CLOUD_PROJECT")
+            if not project:
+                raise OSError(
+                    "GOOGLE_CLOUD_PROJECT environment variable is not set. "
+                    "Copy .env.example to .env and fill in your project ID."
+                )
+            if not is_valid_project_id(project):
+                raise ValueError(f"Invalid GCP project ID: {project!r}")
+            logger.info("Initializing Vertex AI | project=%s | region=%s", project, _REGION)
+            vertexai.init(project=project, location=_REGION)
+            _vertexai_initialized = True
 
 
 def _vertex_response_schema(model: type[BaseModel]) -> dict[str, object]:
@@ -119,8 +167,8 @@ class NeuronVisionAgent(ABC, Generic[T]):
     instruction: str
     output_model: type[T]
 
-    def __init__(self) -> None:
-        _ensure_vertexai()
+    def __init__(self, project_id: str | None = None) -> None:
+        _ensure_vertexai(project_id)
         self._model = GenerativeModel(
             _GEMINI_MODEL,
             system_instruction=self.instruction,
@@ -204,17 +252,30 @@ class NeuronVisionAgent(ABC, Generic[T]):
                 max_output_tokens=2048,
             ),
         )
-        # Strip markdown fences if present
-        text = response.text.strip()
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-        return self.output_model.model_validate_json(text.strip())
+        return self.output_model.model_validate_json(self._extract_json(response.text))
+
+    @staticmethod
+    def _extract_json(text: str) -> str:
+        """Pull the JSON payload out of a model response.
+
+        Handles responses wrapped in markdown fences (possibly with prose
+        around them) without breaking on fences that appear mid-string.
+        """
+        text = text.strip()
+        match = _JSON_FENCE_RE.search(text)
+        if match:
+            return match.group(1)
+        return text
 
     @staticmethod
     def _detect_mime(data: bytes) -> str:
-        """Detect JPEG vs PNG from magic bytes."""
-        if data[:4] == b"\x89PNG":
+        """Detect the image MIME type from magic bytes."""
+        if data[:8] == b"\x89PNG\r\n\x1a\n":
             return "image/png"
+        if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+            return "image/webp"
+        if data[:3] == b"GIF":
+            return "image/gif"
+        if data[:3] != b"\xff\xd8\xff":
+            logger.warning("Unrecognized image magic bytes %r; defaulting to image/jpeg", data[:4])
         return "image/jpeg"

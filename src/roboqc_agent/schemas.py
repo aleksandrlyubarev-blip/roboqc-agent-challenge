@@ -5,17 +5,24 @@ Single source of truth for inter-agent contracts. Vision Inspector emits Defect,
 FMEA Risk emits FMEAEntry, Evidence Report emits TileReport / QCReport,
 Supervisor emits Action.
 
-Frozen 2026-05-16 for Google submission.
+Contract field names and enum values were frozen 2026-05-16 for the Google
+submission; validators may tighten constraints but must not rename fields or
+change accepted enum values.
 """
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+# Upper bound for LLM-generated free-text fields: keeps evidence payloads
+# bounded for storage and UI rendering.
+MAX_RATIONALE_LENGTH = 2000
 
 # ---------------------------------------------------------------------------
 # Enums
@@ -106,6 +113,13 @@ class Tile(BaseModel):
     captured_at: datetime
     operator_id: str
 
+    @field_validator("image_uri")
+    @classmethod
+    def _validate_gcs_uri(cls, value: str) -> str:
+        if not value.startswith("gs://"):
+            raise ValueError("image_uri must be a GCS URI (gs://...)")
+        return value
+
 
 # ---------------------------------------------------------------------------
 # Vision Inspector → Defect
@@ -144,7 +158,8 @@ class FMEAEntry(BaseModel):
     severity: Severity
     default_action: ActionKind
     justification: str = Field(
-        description="One-paragraph reasoning, shown to operator and stored in evidence"
+        max_length=MAX_RATIONALE_LENGTH,
+        description="One-paragraph reasoning, shown to operator and stored in evidence",
     )
     escalate_to_senior: bool = Field(
         default=False,
@@ -162,7 +177,7 @@ class Action(BaseModel):
 
     tile_id: UUID
     kind: ActionKind
-    reason: str = Field(description="Short rationale shown in UI")
+    reason: str = Field(max_length=MAX_RATIONALE_LENGTH, description="Short rationale shown in UI")
     triggered_hitl: bool = Field(
         default=False,
         description=(
@@ -198,9 +213,16 @@ class OperatorResponse(BaseModel):
     )
     rationale: str | None = Field(
         default=None,
+        max_length=MAX_RATIONALE_LENGTH,
         description="Required when action == OVERRIDE",
     )
     responded_at: datetime
+
+    @model_validator(mode="after")
+    def _require_rationale_on_override(self) -> OperatorResponse:
+        if self.action is OperatorAction.OVERRIDE and not self.rationale:
+            raise ValueError("rationale is required when action == override")
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +244,15 @@ class TileReport(BaseModel):
     finalized_at: datetime | None = None
 
 
+def compute_defect_histogram(tile_reports: list[TileReport]) -> dict[DefectClass, int]:
+    """Deterministically aggregate defect counts across tile reports."""
+
+    counter: Counter[DefectClass] = Counter()
+    for tile_report in tile_reports:
+        counter.update(defect.defect_class for defect in tile_report.defects)
+    return dict(counter)
+
+
 class QCReport(BaseModel):
     """Board-level aggregated evidence record."""
 
@@ -240,6 +271,24 @@ class QCReport(BaseModel):
     )
     operator_signoff_at: datetime | None = None
 
+    @model_validator(mode="after")
+    def _enforce_deterministic_histogram(self) -> QCReport:
+        """Recompute the histogram from tile reports, as promised in the prompt.
+
+        An empty histogram (the default) is filled in; a non-empty histogram
+        that disagrees with the recomputed one is rejected, so an LLM cannot
+        smuggle a wrong aggregate into the evidence record.
+        """
+        computed = compute_defect_histogram(self.tile_reports)
+        if not self.defect_histogram:
+            self.defect_histogram = computed
+        elif self.defect_histogram != computed:
+            raise ValueError(
+                f"defect_histogram {self.defect_histogram} does not match "
+                f"recomputed histogram {computed}"
+            )
+        return self
+
 
 class LotSummary(BaseModel):
     """Lot-level rollup across all QCReports in the lot."""
@@ -254,6 +303,8 @@ class LotSummary(BaseModel):
 
 
 __all__ = [
+    "MAX_RATIONALE_LENGTH",
+    "compute_defect_histogram",
     "DefectClass",
     "Severity",
     "ActionKind",

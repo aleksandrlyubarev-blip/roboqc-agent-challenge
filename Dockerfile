@@ -20,6 +20,11 @@ COPY . .
 # ── Create examples dir for sample PCB images ─────────────────────────────────
 RUN mkdir -p examples/pcb_samples
 
+# ── Non-root user ─────────────────────────────────────────────────────────────
+RUN useradd --create-home --uid 1001 appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 # ── Streamlit configuration ───────────────────────────────────────────────────
 ENV STREAMLIT_SERVER_PORT=8080
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0

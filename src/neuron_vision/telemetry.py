@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from typing import Any
 
 from opentelemetry import trace
@@ -27,6 +28,7 @@ _LOCAL_PHOENIX_ENDPOINT = "http://localhost:6006/v1/traces"
 
 _tracer: trace.Tracer | None = None
 _initialized = False
+_init_lock = threading.Lock()
 
 
 def init_tracer(
@@ -39,7 +41,18 @@ def init_tracer(
     Cloud Run must set ``PHOENIX_COLLECTOR_ENDPOINT`` to a hosted Phoenix or
     Arize endpoint. Local development falls back to ``localhost:6006`` and tries
     to launch a Phoenix UI if Phoenix is installed.
+
+    Safe to call from concurrent requests: a lock guarantees the tracer
+    provider is registered exactly once per process.
     """
+    with _init_lock:
+        return _init_tracer_locked(project_name, phoenix_endpoint)
+
+
+def _init_tracer_locked(
+    project_name: str,
+    phoenix_endpoint: str | None,
+) -> trace.Tracer:
     global _initialized, _tracer
 
     if _initialized and _tracer is not None:

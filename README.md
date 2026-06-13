@@ -155,7 +155,11 @@ Root-cause analysis and engineering recommendations are powered by **Claude Fabl
    with structured output (JSON Schema), adaptive thinking and graceful fallback to
    Claude Opus 4.8 on refusal/rate-limit/timeout.
 2. **Vertex AI Agent Builder custom tool** (`infra/fable5/agent_builder_tool.json`) for
-   conversational agents.
+   conversational agents: the OpenAPI tool spec points Agent Builder at the deployed
+   Cloud Run service, so an agent answers "why is this happening?" by POSTing the
+   structured defect batch to `/analyze-defect` and narrating the returned root-cause
+   JSON. System prompt for that agent: `infra/fable5/agent_builder_system_prompt.md`;
+   the spec is registered as a custom tool in the Agent Builder console (Tools → OpenAPI).
 
 The Anthropic API key lives only in **Google Cloud Secret Manager**; every call is logged
 to Cloud Logging with token usage and per-call cost estimates. Setup, IAM, deploy and

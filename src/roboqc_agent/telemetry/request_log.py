@@ -106,8 +106,8 @@ class RequestLogMiddleware(BaseHTTPMiddleware):
     def _emit(self, record: RequestLogRecord) -> None:
         try:
             self._sink(record)
-        except Exception:  # pragma: no cover - logging must never break requests
-            pass
+        except Exception:  # logging must never break requests
+            logging.getLogger(__name__).debug("Request log sink failed", exc_info=True)
 
 
 def _request_id(request: Request) -> str | None:

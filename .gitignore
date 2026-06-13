@@ -18,3 +18,4 @@ examples/pcb_samples/
 # Secrets and backups (never commit)
 .env
 *.bak
+.coverage

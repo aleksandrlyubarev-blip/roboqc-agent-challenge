@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import os
 from collections.abc import AsyncIterator, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -11,7 +13,27 @@ from pydantic import BaseModel
 
 from roboqc_agent.tools.base import AbstractTool, ToolResult, ToolUseContext
 
+logger = logging.getLogger(__name__)
+
 MAX_CONCURRENCY = 10
+DEFAULT_TOOL_TIMEOUT_SECONDS = 60.0
+TOOL_TIMEOUT_ENV_VAR = "ROBOQC_TOOL_TIMEOUT_SECONDS"
+
+
+def _tool_timeout_seconds() -> float:
+    raw = os.getenv(TOOL_TIMEOUT_ENV_VAR)
+    if raw is None:
+        return DEFAULT_TOOL_TIMEOUT_SECONDS
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning(
+            "Invalid %s=%r; falling back to %.0fs",
+            TOOL_TIMEOUT_ENV_VAR,
+            raw,
+            DEFAULT_TOOL_TIMEOUT_SECONDS,
+        )
+        return DEFAULT_TOOL_TIMEOUT_SECONDS
 
 
 @dataclass(slots=True)
@@ -55,7 +77,8 @@ def partition_tool_calls(
         if tool is not None:
             try:
                 parsed = tool.parse_input(call.input)
-            except Exception:
+            except Exception as exc:
+                logger.warning("Tool %s input parse failed; running serially: %s", call.name, exc)
                 parsed = None
             if parsed is not None:
                 can_run_concurrently = tool.is_concurrency_safe(parsed)
@@ -90,7 +113,23 @@ async def _execute_single(
             ),
         )
 
-    result = await tool.run(call.input, context)
+    timeout = _tool_timeout_seconds()
+    try:
+        result = await asyncio.wait_for(tool.run(call.input, context), timeout=timeout)
+    except TimeoutError:
+        # A hung tool must not stall the whole batch; surface it as a tool error.
+        logger.warning("Tool %s timed out after %.0fs", call.name, timeout)
+        return ToolExecution(
+            call=call,
+            result=ToolResult(
+                error=f"Tool {call.name} timed out after {timeout:.0f}s",
+                metadata={
+                    "tool_name": call.name,
+                    "call_id": call.call_id,
+                    "timeout_seconds": timeout,
+                },
+            ),
+        )
     result.metadata.setdefault("call_id", call.call_id)
     result.metadata.setdefault("tool_name", call.name)
     return ToolExecution(call=call, result=result)

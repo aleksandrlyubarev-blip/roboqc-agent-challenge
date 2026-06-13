@@ -1,0 +1,16 @@
+description: "Count of Claude Fable 5 -> Opus fallback events"
+
+filter: |
+  resource.type="cloud_run_revision"
+  AND resource.labels.service_name="roboqc-agent"
+  AND jsonPayload.event="fable5_fallback"
+
+metricDescriptor:
+  metricKind: DELTA
+  valueType: INT64
+  unit: "1"
+  displayName: "Fable 5 fallback events (count)"
+
+labelExtractors:
+  operation: EXTRACT(jsonPayload.operation)
+  fallback_reason: EXTRACT(jsonPayload.fallback_reason)
