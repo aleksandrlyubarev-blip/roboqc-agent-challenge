@@ -29,7 +29,25 @@ PURPLE = (167, 139, 250)
 CARD = (17, 24, 43)
 CARD_EDGE = (44, 56, 86)
 
-FONT_DIR = "/usr/share/fonts/truetype/dejavu"
+def _font_dir() -> str:
+    """Locate the four DejaVu TTFs. Linux ships them under
+    /usr/share/fonts; on macOS/conda matplotlib bundles the same files."""
+    candidates = ["/usr/share/fonts/truetype/dejavu"]
+    try:
+        import matplotlib
+        candidates.append(
+            str(Path(matplotlib.__file__).parent / "mpl-data" / "fonts" / "ttf")
+        )
+    except Exception:
+        pass
+    needed = "DejaVuSans-Bold.ttf"
+    for c in candidates:
+        if (Path(c) / needed).exists():
+            return c
+    return candidates[0]
+
+
+FONT_DIR = _font_dir()
 
 
 def font(size: int, *, bold: bool = True, mono: bool = False) -> ImageFont.FreeTypeFont:
@@ -98,7 +116,7 @@ def kicker(d: ImageDraw.ImageDraw, xy: tuple[int, int], text: str, color) -> Non
 
 
 def footer(d: ImageDraw.ImageDraw, tag: str) -> None:
-    d.text((140, H - 96), "NEURON VISION · RoboQC", font=font(30), fill=DIM)
+    d.text((140, H - 96), "NEURON VISION", font=font(30), fill=DIM)
     d.text((W - 140, H - 96), tag, font=font(30, mono=True), fill=DIM, anchor="ra")
 
 
@@ -345,9 +363,9 @@ def frame_06_observability() -> Image.Image:
     d.text((140, 220), "Every verdict is traceable.", font=font(96), fill=INK)
 
     stats = [
-        ("142", "traces captured", CYAN),
-        ("98.6%", "pipeline success", GREEN),
-        ("6.2 s", "P95 latency", AMBER),
+        ("6", "spans per inspection", CYAN),
+        ("100%", "schema-validated outputs", GREEN),
+        ("0", "free-text decisions", AMBER),
     ]
     bw = 640
     for i, (big, small, color) in enumerate(stats):
@@ -531,7 +549,7 @@ def frame_08_cta() -> Image.Image:
     )
     d.text(
         (W // 2, 1140),
-        "Google Cloud Rapid Agent Hackathon 2026 — Arize partner track",
+        "Google for Startups AI Agents Challenge 2026 — Arize partner track",
         font=font(36, bold=False),
         fill=DIM,
         anchor="mm",

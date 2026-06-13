@@ -1,5 +1,12 @@
 # Architecture — RoboQC Agent
 
+> **Current submission note:** this document captures the earlier 4-agent ADK/API
+> scaffold under `src/roboqc_agent`. The live hackathon submission and Cloud Run
+> UI use the 5-agent `src/neuron_vision` runtime described in the README and
+> demo package: Triage -> Solder / Component / Marking inspectors in parallel
+> -> Chief Inspector. Keep this file for scaffold context, not as the primary
+> video/Devpost architecture.
+
 **Status:** active, week-1 deliverable per `codex_brief.md`.
 **Scope:** describes how the four ADK agents are decomposed, wired, and
 deployed for the Google for Startups AI Agents Challenge submission. Source of
