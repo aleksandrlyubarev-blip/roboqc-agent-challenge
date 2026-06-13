@@ -207,8 +207,7 @@ function Report({ data }: { data: GradeResponse }) {
       </p>
 
       <p className="meta">
-        Graded by {meta.modelId}
-        {meta.fallbackUsed ? " (fallback)" : ""} · {meta.latencyMs} ms ·{" "}
+        Graded by {meta.modelId} · {meta.latencyMs} ms ·{" "}
         {meta.inputTokens + meta.outputTokens} tokens · ~$
         {meta.estimatedCostUsd.toFixed(4)}
       </p>

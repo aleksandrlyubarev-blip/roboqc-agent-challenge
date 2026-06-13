@@ -1,11 +1,9 @@
 /**
- * DepositShield reasoning client — Claude Fable 5 vision + structured output.
+ * DepositShield reasoning client — Claude Opus 4.8 vision + structured output.
  *
- * Same proven design as the NeuroVision pipeline (src/neuron_vision/fable5):
- * adaptive thinking only; structured output via output_config.format (schema
- * sanitized + zod re-validated); byte-stable cached system prompt; server-side
- * refusal fallback to claude-opus-4-8. Logs metadata only — never prompts,
- * images, or model output.
+ * Adaptive thinking; structured output via output_config.format (schema
+ * sanitized + zod re-validated); byte-stable cached system prompt. Logs
+ * metadata only — never prompts, images, or output.
  */
 import Anthropic from "@anthropic-ai/sdk";
 
@@ -17,15 +15,11 @@ import {
   sanitizeJsonSchema,
 } from "./schema";
 
-const PRIMARY_MODEL = "claude-fable-5";
-const FALLBACK_MODEL = "claude-opus-4-8";
+const MODEL = "claude-opus-4-8";
 const MAX_TOKENS = 16_000;
-const SERVER_SIDE_FALLBACK_BETA = "server-side-fallback-2026-06-01";
-
-const PRICING: Record<string, [number, number]> = {
-  "claude-fable-5": [10, 50],
-  "claude-opus-4-8": [5, 25],
-};
+// USD per million tokens for claude-opus-4-8.
+const INPUT_RATE = 5;
+const OUTPUT_RATE = 25;
 
 export interface ImageInput {
   mediaType: string;
@@ -34,7 +28,6 @@ export interface ImageInput {
 
 export interface InspectionMeta {
   modelId: string;
-  fallbackUsed: boolean;
   latencyMs: number;
   inputTokens: number;
   outputTokens: number;
@@ -58,7 +51,7 @@ interface Usage {
   cache_read_input_tokens?: number;
   cache_creation_input_tokens?: number;
 }
-interface BetaMessageResponse {
+interface MessageResponse {
   model: string;
   stop_reason: string | null;
   stop_details?: { category?: string | null } | null;
@@ -76,21 +69,16 @@ function getClient(): Anthropic {
   return cachedClient;
 }
 
-function estimateCostUsd(model: string, usage: Usage): number {
-  const [inRate, outRate] = PRICING[model] ?? PRICING[FALLBACK_MODEL];
+function estimateCostUsd(usage: Usage): number {
   const cachedIn = usage.cache_read_input_tokens ?? 0;
   const writeIn = usage.cache_creation_input_tokens ?? 0;
   const freshIn = usage.input_tokens ?? 0;
   const out = usage.output_tokens ?? 0;
-  const inputCost = (freshIn + writeIn * 1.25 + cachedIn * 0.1) * inRate;
-  return (inputCost + out * outRate) / 1_000_000;
+  const inputCost = (freshIn + writeIn * 1.25 + cachedIn * 0.1) * INPUT_RATE;
+  return (inputCost + out * OUTPUT_RATE) / 1_000_000;
 }
 
-function buildUserContent(
-  images: ImageInput[],
-  phase: string,
-  context?: string,
-): unknown[] {
+function buildUserContent(images: ImageInput[], phase: string, context?: string): unknown[] {
   const blocks: unknown[] = images.map((img) => ({
     type: "image",
     source: { type: "base64", media_type: img.mediaType, data: img.base64 },
@@ -109,7 +97,7 @@ function buildUserContent(
 
 /**
  * Inspect a set of property photos and draft a condition report.
- * Throws InspectionError on refusal (both models declined) or bad output.
+ * Throws InspectionError on refusal or bad output.
  */
 export async function inspectCondition(
   images: ImageInput[],
@@ -122,10 +110,8 @@ export async function inspectCondition(
   const client = getClient();
 
   const params = {
-    model: PRIMARY_MODEL,
+    model: MODEL,
     max_tokens: MAX_TOKENS,
-    betas: [SERVER_SIDE_FALLBACK_BETA],
-    fallbacks: [{ model: FALLBACK_MODEL }],
     thinking: { type: "adaptive" },
     output_config: {
       effort,
@@ -138,11 +124,10 @@ export async function inspectCondition(
   };
 
   const started = Date.now();
-  const create = client.beta.messages.create as unknown as (
-    p: unknown,
-  ) => Promise<BetaMessageResponse>;
+  // Cast: output_config typing can lag the installed SDK.
+  const create = client.messages.create as unknown as (p: unknown) => Promise<MessageResponse>;
 
-  let response: BetaMessageResponse;
+  let response: MessageResponse;
   try {
     response = await create(params);
   } catch (err) {
@@ -152,7 +137,7 @@ export async function inspectCondition(
 
   if (response.stop_reason === "refusal") {
     const category = response.stop_details?.category ?? "unknown";
-    throw new InspectionError(`request was declined by safety classifiers (${category})`);
+    throw new InspectionError(`request was declined (${category})`);
   }
 
   const text = response.content.find((b) => b.type === "text")?.text;
@@ -173,11 +158,10 @@ export async function inspectCondition(
   const usage = response.usage ?? {};
   const meta: InspectionMeta = {
     modelId: response.model,
-    fallbackUsed: !response.model.startsWith("claude-fable-5"),
     latencyMs,
     inputTokens: usage.input_tokens ?? 0,
     outputTokens: usage.output_tokens ?? 0,
-    estimatedCostUsd: estimateCostUsd(response.model, usage),
+    estimatedCostUsd: estimateCostUsd(usage),
   };
 
   return { report: validated.data, meta };

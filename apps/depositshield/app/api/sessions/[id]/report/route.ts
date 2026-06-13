@@ -5,7 +5,7 @@ import { InspectionError, inspectCondition } from "@/lib/inspection/client";
 import { fetchImage } from "@/lib/storage/s3";
 
 export const runtime = "nodejs";
-// Fable 5 inspection can take 10–30s at high effort.
+// The inspection call can take 10–30s at high effort.
 export const maxDuration = 60;
 
 export async function POST(

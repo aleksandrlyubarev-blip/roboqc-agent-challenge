@@ -8,7 +8,7 @@ normal wear**, with a draft responsibility hint per finding.
 > **not** legal advice, not a forensic determination, and makes **no promise** about
 > deposit recovery. This framing is intentional and appears throughout the UI.
 
-The Amazon **H0** entry: Next.js on Vercel + AWS (DynamoDB + S3) + **Claude Fable 5**.
+The Amazon **H0** entry: Next.js on Vercel + AWS (DynamoDB + S3) + **Claude Opus 4.8**.
 Decision rationale and scoring: [`docs/H0_IDEATION.md`](../../docs/H0_IDEATION.md).
 
 ## Why this scores on H0
@@ -17,8 +17,8 @@ Decision rationale and scoring: [`docs/H0_IDEATION.md`](../../docs/H0_IDEATION.m
   audit/event store — session meta + per-photo events + report — queryable as a
   full trail per inspection.
 - **Reasoning, not just detection:** `wear_classification` + draft responsibility
-  is where Claude Fable 5 visibly beats pixel-only CV (it reasons "who, and why",
-  with caveats). Server-side fallback to `claude-opus-4-8` on a safety refusal.
+  is where Claude Opus 4.8 visibly beats pixel-only CV (it reasons "who, and why",
+  with caveats).
 - **Demo strength:** create session → upload room photos → room-by-room report →
   shareable link, in well under 3 minutes.
 
@@ -46,9 +46,9 @@ app/
   api/upload-url/                POST → presigned S3 PUT
   api/sessions/                  POST create · GET list (GSI1)
   api/sessions/[id]/             GET full session bundle (audit trail)
-  api/sessions/[id]/report/      POST photoKeys → Fable 5 inspection → DynamoDB
+  api/sessions/[id]/report/      POST photoKeys → Opus 4.8 inspection → DynamoDB
 lib/
-  inspection/client.ts           Fable 5 vision + json_schema + Opus fallback
+  inspection/client.ts           Opus 4.8 vision + json_schema structured output
   inspection/schema.ts           wire schema (constraint-free) + zod validator
   inspection/prompt.ts           cautious, cache-friendly system prompt
   db/dynamo.ts                   single-table audit/event store
@@ -67,7 +67,7 @@ npm run dev                     # http://localhost:3000
 ```
 
 `npm run typecheck` runs `tsc --noEmit`. Needs a `@anthropic-ai/sdk` that supports
-Fable 5 + the `server-side-fallback-2026-06-01` beta.
+Opus 4.8 + structured outputs.
 
 ## Provision AWS
 

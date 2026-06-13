@@ -93,8 +93,7 @@ export function Report({
 
       {meta && (
         <p className="meta">
-          Drafted by {meta.modelId}
-          {meta.fallbackUsed ? " (fallback)" : ""} · {meta.latencyMs} ms ·{" "}
+          Drafted by {meta.modelId} · {meta.latencyMs} ms ·{" "}
           {meta.inputTokens + meta.outputTokens} tokens · ~${meta.estimatedCostUsd.toFixed(4)}
         </p>
       )}

@@ -3,7 +3,7 @@
  *
  * The heart of the product is `wear_classification` (normal wear-and-tear vs
  * damage beyond normal wear) and a *draft* responsibility hint — this is where
- * Fable 5 reasoning visibly beats pixel-only detection. Framing is deliberately
+ * Opus 4.8 reasoning visibly beats pixel-only detection. Framing is deliberately
  * cautious: this drafts a condition report, it is not a legal determination.
  *
  * Two representations kept in sync (same pattern as the NeuroVision pipeline):

@@ -7,7 +7,7 @@ import { putGrading } from "@/lib/db/dynamo";
 import { fetchImage } from "@/lib/storage/s3";
 
 export const runtime = "nodejs";
-// Fable 5 grading can take 10–30s at high effort; give the function room.
+// The grading call can take 10–30s at high effort; give the function room.
 export const maxDuration = 60;
 
 interface GradeBody {

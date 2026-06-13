@@ -2,7 +2,7 @@
   "name": "depositshield",
   "version": "0.1.0",
   "private": true,
-  "description": "Organize visual evidence and draft a rental condition report (Claude Fable 5 vision + reasoning)",
+  "description": "Organize visual evidence and draft a rental condition report (Claude Opus 4.8 vision + reasoning)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
