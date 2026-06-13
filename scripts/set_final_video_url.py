@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Patch the final uploaded video URL into README and Devpost copy."""
+
 from __future__ import annotations
 
 import argparse
 import re
 from pathlib import Path
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 README_PATH = REPO_ROOT / "README.md"
@@ -18,7 +18,9 @@ DEVPOST_LABEL = "- **Final Video:**"
 def validate_url(url: str) -> str:
     value = url.strip()
     if not re.fullmatch(r"https?://\S+", value):
-        raise argparse.ArgumentTypeError("URL must start with http:// or https:// and contain no spaces")
+        raise argparse.ArgumentTypeError(
+            "URL must start with http:// or https:// and contain no spaces"
+        )
     return value
 
 
@@ -48,7 +50,9 @@ def patch_file(path: Path, label: str, url: str, insert_after: str, dry_run: boo
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("url", type=validate_url, help="Final unlisted YouTube/Vimeo video URL.")
-    parser.add_argument("--dry-run", action="store_true", help="Print intended changes without writing files.")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Print intended changes without writing files."
+    )
     return parser.parse_args()
 
 

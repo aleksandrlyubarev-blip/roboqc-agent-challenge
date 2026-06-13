@@ -18,42 +18,66 @@ TOTAL = 175.0  # match the silent cut
 
 # (start_offset_seconds, spoken_text)
 SEGMENTS = [
-    (0, "An automated optical inspection machine costs half a million to a "
+    (
+        0,
+        "An automated optical inspection machine costs half a million to a "
         "million dollars. That's the entry ticket for catching solder defects "
         "on a PCB line. Most small electronics shops never pay it. They inspect "
-        "by eye, and defects ship."),
-    (18, "Neuron Vision replaces that machine with five Gemini agents. A photo "
-         "of the board hits the Triage agent, which decides what deserves a "
-         "closer look. Then three specialists fan out in parallel: solder "
-         "joints, component placement, silkscreen markings. A Chief Inspector "
-         "reads all three reports and issues the verdict: pass, or reject with "
-         "the defect named and located. Every agent returns structured JSON, "
-         "enforced by Pydantic v2 response schemas. No parsing. No prompt glue."),
-    (49, "This isn't a slide deck. It's deployed on Cloud Run, running Gemini "
-         "2.5 Pro in us-central1, right now. Upload a board photo, get a named, "
-         "located defect in seconds. The URL is on screen. Judges, you're "
-         "welcome to try to break it."),
-    (70, "The three specialists don't queue. One asyncio gather call runs them "
-         "concurrently. Sequential inspection took fourteen point one seconds. "
-         "Parallel takes four point seven. Same model, same prompts, three "
-         "times faster, because the bottleneck was the architecture, not the "
-         "model."),
-    (92, "Do the math. An AOI machine is up to a million dollars of capex and "
-         "weeks of reprogramming for every new board design. Neuron Vision is "
-         "zero infrastructure, cents per inspection, and a new design means "
-         "editing a prompt. This is QC that scales down to a ten-person shop, "
-         "not just up to a gigafactory."),
-    (115, "And it's not a black box. Every run is traced with Arize Phoenix. "
-          "When an agent disagrees with a human inspector, we replay exactly "
-          "what it saw, and what it said."),
-    (136, "The whole pipeline is this honest. Typed agents, one gather call, "
-          "and response schemas generated straight from Pydantic models. No "
-          "frameworks fighting frameworks. Vertex AI and about two hundred "
-          "lines of orchestration you can actually read."),
-    (159, "Neuron Vision. Factory-grade inspection, no factory budget required. "
-          "The demo is live, the repo is open, links on screen. Built for the "
-          "Google for Startups AI Agents Challenge, traced end to end with Arize "
-          "Phoenix."),
+        "by eye, and defects ship.",
+    ),
+    (
+        18,
+        "Neuron Vision replaces that machine with five Gemini agents. A photo "
+        "of the board hits the Triage agent, which decides what deserves a "
+        "closer look. Then three specialists fan out in parallel: solder "
+        "joints, component placement, silkscreen markings. A Chief Inspector "
+        "reads all three reports and issues the verdict: pass, or reject with "
+        "the defect named and located. Every agent returns structured JSON, "
+        "enforced by Pydantic v2 response schemas. No parsing. No prompt glue.",
+    ),
+    (
+        49,
+        "This isn't a slide deck. It's deployed on Cloud Run, running Gemini "
+        "2.5 Pro in us-central1, right now. Upload a board photo, get a named, "
+        "located defect in seconds. The URL is on screen. Judges, you're "
+        "welcome to try to break it.",
+    ),
+    (
+        70,
+        "The three specialists don't queue. One asyncio gather call runs them "
+        "concurrently. Sequential inspection took fourteen point one seconds. "
+        "Parallel takes four point seven. Same model, same prompts, three "
+        "times faster, because the bottleneck was the architecture, not the "
+        "model.",
+    ),
+    (
+        92,
+        "Do the math. An AOI machine is up to a million dollars of capex and "
+        "weeks of reprogramming for every new board design. Neuron Vision is "
+        "zero infrastructure, cents per inspection, and a new design means "
+        "editing a prompt. This is QC that scales down to a ten-person shop, "
+        "not just up to a gigafactory.",
+    ),
+    (
+        115,
+        "And it's not a black box. Every run is traced with Arize Phoenix. "
+        "When an agent disagrees with a human inspector, we replay exactly "
+        "what it saw, and what it said.",
+    ),
+    (
+        136,
+        "The whole pipeline is this honest. Typed agents, one gather call, "
+        "and response schemas generated straight from Pydantic models. No "
+        "frameworks fighting frameworks. Vertex AI and about two hundred "
+        "lines of orchestration you can actually read.",
+    ),
+    (
+        159,
+        "Neuron Vision. Factory-grade inspection, no factory budget required. "
+        "The demo is live, the repo is open, links on screen. Built for the "
+        "Google for Startups AI Agents Challenge, traced end to end with Arize "
+        "Phoenix.",
+    ),
 ]
 
 VOICE = "en-US-GuyNeural"
@@ -65,9 +89,19 @@ RATE = {2: "+10%"}
 
 def dur(path: Path) -> float:
     out = subprocess.run(
-        ["ffprobe", "-v", "error", "-show_entries", "format=duration",
-         "-of", "default=nw=1:nk=1", str(path)],
-        capture_output=True, text=True, check=True,
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=nw=1:nk=1",
+            str(path),
+        ],
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return float(out.stdout.strip())
 
@@ -77,8 +111,7 @@ def main() -> None:
     seg_paths: list[tuple[int, Path]] = []
     for i, (off, text) in enumerate(SEGMENTS, 1):
         p = SEG_DIR / f"seg_{i:02d}.mp3"
-        cmd = ["edge-tts", "--voice", VOICE, "--text", text,
-               "--write-media", str(p)]
+        cmd = ["edge-tts", "--voice", VOICE, "--text", text, "--write-media", str(p)]
         if i in RATE:
             cmd += ["--rate", RATE[i]]
         subprocess.run(cmd, check=True)
@@ -101,9 +134,20 @@ def main() -> None:
     )
     out = HERE / "vo_audio.mp3"
     subprocess.run(
-        ["ffmpeg", "-y", *inputs,
-         "-filter_complex", ";".join(filt),
-         "-map", "[out]", "-c:a", "libmp3lame", "-q:a", "4", str(out)],
+        [
+            "ffmpeg",
+            "-y",
+            *inputs,
+            "-filter_complex",
+            ";".join(filt),
+            "-map",
+            "[out]",
+            "-c:a",
+            "libmp3lame",
+            "-q:a",
+            "4",
+            str(out),
+        ],
         check=True,
     )
     print(f"\nwrote {out} ({dur(out):.1f} s)")

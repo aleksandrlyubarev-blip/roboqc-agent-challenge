@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 """Verify local Neuron Vision submission materials before Devpost upload."""
+
 from __future__ import annotations
 
 import argparse
 import json
 import re
 import subprocess
-import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 from PIL import Image
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LIVE_DEMO_URL = "https://neuron-vision-display-z3mwyxcila-uc.a.run.app"
@@ -78,7 +77,8 @@ def check_frames(report: CheckReport) -> None:
     frame_dir = REPO_ROOT / "video" / "frames"
     if not frame_dir.is_dir():
         report.pending_(
-            "video/frames/ not present (git-ignored); run `python video/make_frames.py` to regenerate"
+            "video/frames/ not present (git-ignored); "
+            "run `python video/make_frames.py` to regenerate"
         )
         return
 
@@ -136,7 +136,8 @@ def check_video(report: CheckReport, rel: str, require_voice: bool) -> None:
     else:
         report.fail(f"{rel} duration is {duration:.3f}s, expected 175s")
 
-    if video_streams and video_streams[0].get("width") == 1920 and video_streams[0].get("height") == 1080:
+    stream = video_streams[0] if video_streams else {}
+    if stream.get("width") == 1920 and stream.get("height") == 1080:
         report.pass_(f"{rel} video stream is 1920x1080")
     else:
         report.fail(f"{rel} video stream is not 1920x1080")
@@ -261,7 +262,9 @@ def check_pytest(report: CheckReport, run_pytest: bool) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--skip-live", action="store_true", help="Skip Cloud Run live URL check.")
-    parser.add_argument("--run-pytest", action="store_true", help="Run pytest -q as part of verification.")
+    parser.add_argument(
+        "--run-pytest", action="store_true", help="Run pytest -q as part of verification."
+    )
     parser.add_argument(
         "--strict-final",
         action="store_true",

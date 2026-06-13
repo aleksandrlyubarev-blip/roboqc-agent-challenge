@@ -29,15 +29,15 @@ PURPLE = (167, 139, 250)
 CARD = (17, 24, 43)
 CARD_EDGE = (44, 56, 86)
 
+
 def _font_dir() -> str:
     """Locate the four DejaVu TTFs. Linux ships them under
     /usr/share/fonts; on macOS/conda matplotlib bundles the same files."""
     candidates = ["/usr/share/fonts/truetype/dejavu"]
     try:
         import matplotlib
-        candidates.append(
-            str(Path(matplotlib.__file__).parent / "mpl-data" / "fonts" / "ttf")
-        )
+
+        candidates.append(str(Path(matplotlib.__file__).parent / "mpl-data" / "fonts" / "ttf"))
     except Exception:
         pass
     needed = "DejaVuSans-Bold.ttf"
