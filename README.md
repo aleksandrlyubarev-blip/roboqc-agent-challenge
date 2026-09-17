@@ -3,6 +3,13 @@
 **5-agent visual QC for SMT PCB manufacturing**  
 _Team RomeoFlexVision · Google for Startups AI Agents Challenge 2026_
 
+## System role
+
+This repo is the five-agent PCB/SMT visual inspection container of the Physical AI inspection system.
+System map: https://github.com/aleksandrlyubarev-blip/physical-ai-inspection-system
+Generated architecture: [./docs/litho/](./docs/litho/) (created by a successful Litho run).
+Product canon: [litho/context/PRODUCT.md](litho/context/PRODUCT.md).
+
 [![Cloud Run](https://img.shields.io/badge/Deploy-Cloud%20Run-4285F4?logo=google-cloud)](https://cloud.google.com/run)
 [![Gemini 2.5 Pro](https://img.shields.io/badge/Model-Gemini%202.5%20Pro-EA4335?logo=google)](https://cloud.google.com/vertex-ai)
 [![Arize Phoenix](https://img.shields.io/badge/Observability-Arize%20Phoenix-6F42C1)](https://phoenix.arize.com/)
@@ -399,3 +406,19 @@ MIT — see [LICENSE](LICENSE)
 ---
 
 _Built for the Google for Startups AI Agents Challenge 2026 · Team RomeoFlexVision_
+
+## Architecture docs
+
+[Litho runbook](litho/README.md) · [Product canon](litho/context/PRODUCT.md).
+Generated architecture is written to [docs/litho/](docs/litho/) after a successful run.
+No model-generated documentation is committed by this scaffold: the implementation environment has no `LITHO_LLM_API_KEY`.
+
+```bash
+cargo install deepwiki-rs --version 1.6.0 --locked
+# Export LITHO_LLM_API_KEY securely in your shell; never store it in Git.
+bash scripts/litho_generate.sh --check
+bash scripts/litho_generate.sh
+```
+
+The workflow uploads documentation artifacts on configured runs and skips generation when the key is absent.
+Review generated claims against the canon before committing Markdown; do not commit caches.
