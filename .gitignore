@@ -18,3 +18,12 @@ examples/pcb_samples/
 # Secrets and backups (never commit)
 .env
 *.bak
+
+# Litho documentation automation (including its actual internal directory)
+.litho/
+.litho-cache/
+*.litho-cache/
+litho.docs/
+litho/.inputs/
+.env
+.env.*
